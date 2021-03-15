@@ -1,6 +1,6 @@
 # Study and Development of an Autopsy Module for Automated Analysis of Image Metadata
-*Final degree project under the supervision of Universitat Politècnica de Catalunya (UPC) from Barcelona.*
+*Final degree project under the supervision of Universitat Politècnica de Catalunya (UPC), Barcelona.*
 
 ## Author
-Jordi Domenech Fons
+Jordi Doménech Fons - Telecom Engineering
 
