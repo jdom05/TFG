@@ -2,5 +2,5 @@
 *Final degree project under the supervision of Universitat Politècnica de Catalunya (UPC), Barcelona.*
 
 ## Author
-Jordi Doménech Fons - Telecom Engineering
+Jordi Doménech Fons - Telecom Engineer
 
