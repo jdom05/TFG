@@ -7,6 +7,10 @@ Autopsy Module
 
 Make sure to install `exiftool` in the proper *PATH*:
 - **Windows**: `C:\WINDOWS\exiftool.exe`
-- **MacOS**: `/usr/local/bin/exiftool` 
+- **MacOS**: `/usr/local/bin/exiftool`
+
+If you are using **Windows** replace the constant `PATH_MACOS` for `PATH_WINDOWS` in [ImageAnalyzerGUI.py](ImageAnalyzerGUI.py) *line 177*.
+
+ 
 
 
