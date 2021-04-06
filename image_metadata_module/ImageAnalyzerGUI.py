@@ -127,7 +127,6 @@ class ImageMetadataFileIngestModuleWithUIFactory(IngestModuleFactoryAdapter):
 
 
 # File-level ingest module.  One gets created per thread.
-# TODO: Rename this to something more specific. Could just remove "Factory" from above name.
 # Looks at the attributes of the passed in file.
 class ImageMetadataFileIngestModuleWithUI(FileIngestModule):
 
@@ -169,6 +168,37 @@ class ImageMetadataFileIngestModuleWithUI(FileIngestModule):
             self.log(Level.INFO, "other is set")
         else:
             self.log(Level.INFO, "other is not set")
+            
+        # Determine if user configured jpg in UI
+        if self.local_settings.getSetting("jpg") == "true":
+            self.log(Level.INFO, "jpg is set")
+        else:
+            self.log(Level.INFO, "jpg is not set")
+            
+        # Determine if user configured png in UI
+        if self.local_settings.getSetting("png") == "true":
+            self.log(Level.INFO, "png is set")
+        else:
+            self.log(Level.INFO, "png is not set")
+            
+        # Determine if user configured tiff in UI
+        if self.local_settings.getSetting("tiff") == "true":
+            self.log(Level.INFO, "tiff is set")
+        else:
+            self.log(Level.INFO, "tiff is not set")
+            
+        # Determine if user configured gif in UI
+        if self.local_settings.getSetting("gif") == "true":
+            self.log(Level.INFO, "gif is set")
+        else:
+            self.log(Level.INFO, "gif is not set")
+            
+        # Determine if user configured heic in UI
+        if self.local_settings.getSetting("heic") == "true":
+            self.log(Level.INFO, "heic is set")
+        else:
+            self.log(Level.INFO, "heic is not set")
+
 
         # Throw an IngestModule.IngestModuleException exception if there was a problem setting up
         # raise IngestModuleException("Oh No!")
@@ -184,9 +214,21 @@ class ImageMetadataFileIngestModuleWithUI(FileIngestModule):
             return IngestModule.ProcessResult.OK
         
          
-        if file.getName().lower().endswith(".jpg"):
+        # At the moment we will only analyze 4 different type of files:
+            # - JPG (JPEG)
+            # - PNG (does not support EXIF metadata)
+            # - TIFF
+            # - GIF (does not support IPTC metadata)
+            # - HEIC (supports EXIF and XMP, but IPTC ??)
+        if (
+            (file.getName().lower().endswith(".jpg") and self.local_settings.getSetting("jpg") == "true") or
+            (file.getName().lower().endswith(".png") and self.local_settings.getSetting("png") == "true") or
+            (file.getName().lower().endswith(".tiff") and self.local_settings.getSetting("tiff") == "true") or
+            (file.getName().lower().endswith(".gif") and self.local_settings.getSetting("gif") == "true") or
+            (file.getName().lower().endswith(".heic") and self.local_settings.getSetting("heic") == "true")
+            ):
             
-            self.log(Level.INFO, "Found a JPG file with path: " + file.getLocalAbsPath())
+            self.log(Level.INFO, "Found a image file with path: " + file.getLocalAbsPath())
             #self.log(Level.INFO, "Found a JPG file with path: " + file.getUniquePath())
             self.filesAnalyzed += 1
             self.log(Level.INFO, "Files analyzed: " + str(self.filesAnalyzed))
@@ -194,17 +236,12 @@ class ImageMetadataFileIngestModuleWithUI(FileIngestModule):
             #if self.local_settings.getSetting("exif") == "true":
              #   self.filesAnalyzed += 1
                 
-            
+             
             # Analyze the image metadata
             with ExifTool(PATH_MACOS) as et:   
                 metadata = et.get_metadata(file.getLocalAbsPath())
                 #metadata = et.get_metadata(file.getUniquePath())
-                
-            #for m in range(0, len(metadata)):
-             #   if (list(metadata)[m] == "EXIF:Model"):
-              #      camera_model = list(metadata.values())[m]
-               #     self.filesAnalyzed += 1
-                #    break
+    
             
             # Use blackboard class to index blackboard artifacts for keyword search
             blackboard = Case.getCurrentCase().getServices().getBlackboard()
@@ -233,6 +270,7 @@ class ImageMetadataFileIngestModuleWithUI(FileIngestModule):
                         artifact.addAttribute(attribute)
                     except:
                         self.log(Level.INFO, "Error adding EXIF Attribute" + list(metadata)[m] + "to the Artifact!")
+                        
                 
                         
                 # Check the GUI box "IPTC"
@@ -294,24 +332,6 @@ class ImageMetadataFileIngestModuleWithUI(FileIngestModule):
                         self.log(Level.INFO, "Error adding other Attribute" + list(metadata)[m] + "to the Artifact!")
                     
             
-            # Use blackboard class to index blackboard artifacts for keyword search
-            # blackboard = Case.getCurrentCase().getServices().getBlackboard()
-            
-            # Creating a custom Artifact
-            # artId = blackboard.getOrAddArtifactType("TSK_IMAGE_METADATA", "Image Metadata Analyzer")
-            # artifact = file.newArtifact(artId.getTypeID())
-            
-            # Creating new Attributes
-            # attId = blackboard.getOrAddAttributeType("TSK_CAMERA_MODEL", BlackboardAttribute.TSK_BLACKBOARD_ATTRIBUTE_VALUE_TYPE.STRING, "Camera Model")
-            # attribute = BlackboardAttribute(attId, ImageMetadataFileIngestModuleWithUIFactory.moduleName, camera_model)
-            
-            # Adding the Attribute to the Artifact
-            # try:  
-              #  artifact.addAttribute(attribute)
-            # except:
-              #  self.log(Level.INFO, "Error adding Attribute to the Artifact!")
-                    
-            
             #blackboard.postArtifact(artifact, ImageMetadataFileIngestModuleWithUIFactory.moduleName)
             
             # Fires an event to notify the UI and others that there is a new artifact
@@ -329,7 +349,7 @@ class ImageMetadataFileIngestModuleWithUI(FileIngestModule):
             IngestMessage.MessageType.DATA, ImageMetadataFileIngestModuleWithUIFactory.moduleName,
                 str(self.filesAnalyzed) + " files analyzed")
         ingestServices = IngestServices.getInstance().postMessage(message)
-        #pass
+        
 
 
 
@@ -356,6 +376,8 @@ class ImageMetadataFileIngestModuleWithUISettingsPanel(IngestModuleIngestJobSett
         self.customizeComponents()
 
     
+    #=============== start CheckBox Events ===============#
+    
     def exifCheckBoxEvent(self, event):
         if self.exif_checkbox.isSelected():
             self.local_settings.setSetting("exif", "true")
@@ -381,6 +403,38 @@ class ImageMetadataFileIngestModuleWithUISettingsPanel(IngestModuleIngestJobSett
         else:
             self.local_settings.setSetting("other", "false")
             
+    def jpgCheckBoxEvent(self, event):
+        if self.jpg_checkbox.isSelected():
+            self.local_settings.setSetting("jpg", "true")
+        else:
+            self.local_settings.setSetting("jpg", "false")
+            
+    def pngCheckBoxEvent(self, event):
+        if self.png_checkbox.isSelected():
+            self.local_settings.setSetting("png", "true")
+        else:
+            self.local_settings.setSetting("png", "false")
+            
+    def tiffCheckBoxEvent(self, event):
+        if self.tiff_checkbox.isSelected():
+            self.local_settings.setSetting("tiff", "true")
+        else:
+            self.local_settings.setSetting("tiff", "false")
+            
+    def gifCheckBoxEvent(self, event):
+        if self.gif_checkbox.isSelected():
+            self.local_settings.setSetting("gif", "true")
+        else:
+            self.local_settings.setSetting("gif", "false")
+            
+    def heicCheckBoxEvent(self, event):
+        if self.heic_checkbox.isSelected():
+            self.local_settings.setSetting("heic", "true")
+        else:
+            self.local_settings.setSetting("heic", "false")
+    
+    #=============== end CheckBox Events ===============#
+            
 
     def initComponents(self):
         self.setLayout(BoxLayout(self, BoxLayout.Y_AXIS))
@@ -404,8 +458,28 @@ class ImageMetadataFileIngestModuleWithUISettingsPanel(IngestModuleIngestJobSett
         self.other_checkbox = JCheckBox("Other", actionPerformed=self.otherCheckBoxEvent)
         self.add(self.other_checkbox)
         
-        label2 = JLabel("Select the type of image files you want to analyze:")
+        label2 = JLabel("Select the type of image file you want to analyze:")
         self.add(label2)
+        
+        # JPG checkbox
+        self.jpg_checkbox = JCheckBox("JPG (JPEG)", actionPerformed=self.jpgCheckBoxEvent)
+        self.add(self.jpg_checkbox)
+        
+        # PNG checkbox
+        self.png_checkbox = JCheckBox("PNG", actionPerformed=self.pngCheckBoxEvent)
+        self.add(self.png_checkbox)
+        
+        # TIFF checkbox
+        self.tiff_checkbox = JCheckBox("TIFF", actionPerformed=self.tiffCheckBoxEvent)
+        self.add(self.tiff_checkbox)
+        
+        # GIF checkbox
+        self.gif_checkbox = JCheckBox("GIF", actionPerformed=self.gifCheckBoxEvent)
+        self.add(self.gif_checkbox)
+        
+        # HEIC checkbox
+        self.heic_checkbox = JCheckBox("HEIC", actionPerformed=self.heicCheckBoxEvent)
+        self.add(self.heic_checkbox)
         
         
 
@@ -421,6 +495,21 @@ class ImageMetadataFileIngestModuleWithUISettingsPanel(IngestModuleIngestJobSett
         
         # Mantain the GUI Other box selected if selected before
         self.other_checkbox.setSelected(self.local_settings.getSetting("other") == "true")
+        
+        # Mantain the GUI JPG box selected if selected before
+        self.jpg_checkbox.setSelected(self.local_settings.getSetting("jpg") == "true")
+        
+        # Mantain the GUI PNG box selected if selected before
+        self.png_checkbox.setSelected(self.local_settings.getSetting("png") == "true")
+        
+        # Mantain the GUI TIFF box selected if selected before
+        self.tiff_checkbox.setSelected(self.local_settings.getSetting("tiff") == "true")
+        
+        # Mantain the GUI GIF box selected if selected before
+        self.gif_checkbox.setSelected(self.local_settings.getSetting("gif") == "true")
+        
+        # Mantain the GUI HEIC box selected if selected before
+        self.heic_checkbox.setSelected(self.local_settings.getSetting("heic") == "true")
 
     # Return the settings used
     def getSettings(self):
