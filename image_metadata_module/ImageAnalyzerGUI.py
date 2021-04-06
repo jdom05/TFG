@@ -50,7 +50,7 @@ import jarray
 import inspect
 from java.lang import System
 from java.util.logging import Level
-from javax.swing import JCheckBox
+from javax.swing import JCheckBox, JLabel
 from javax.swing import BoxLayout
 from org.sleuthkit.autopsy.casemodule import Case
 from org.sleuthkit.autopsy.casemodule.services import Services
@@ -138,20 +138,37 @@ class ImageMetadataFileIngestModuleWithUI(FileIngestModule):
 
     # Autopsy will pass in the settings from the UI panel
     def __init__(self, settings):
+        self.context = None
         self.local_settings = settings
-
 
     # Where any setup and configuration is done
     # Add any setup code that you need here.
     def startUp(self, context):
         self.filesAnalyzed = 0
-        self.filesFound = 0
         
-        # Determine if user configured camera_model in UI
-        if self.local_settings.getSetting("camera_model") == "true":
-            self.log(Level.INFO, "camera_model is set")
+        # Determine if user configured exif in UI
+        if self.local_settings.getSetting("exif") == "true":
+            self.log(Level.INFO, "exif is set")
         else:
-            self.log(Level.INFO, "camera_model is not set")
+            self.log(Level.INFO, "exif is not set")
+            
+        # Determine if user configured iptc in UI
+        if self.local_settings.getSetting("iptc") == "true":
+            self.log(Level.INFO, "iptc is set")
+        else:
+            self.log(Level.INFO, "iptc is not set")
+            
+        # Determine if user configured xmp in UI
+        if self.local_settings.getSetting("xmp") == "true":
+            self.log(Level.INFO, "xmp is set")
+        else:
+            self.log(Level.INFO, "xmp is not set")
+            
+        # Determine if user configured other in UI
+        if self.local_settings.getSetting("other") == "true":
+            self.log(Level.INFO, "other is set")
+        else:
+            self.log(Level.INFO, "other is not set")
 
         # Throw an IngestModule.IngestModuleException exception if there was a problem setting up
         # raise IngestModuleException("Oh No!")
@@ -171,18 +188,23 @@ class ImageMetadataFileIngestModuleWithUI(FileIngestModule):
             
             self.log(Level.INFO, "Found a JPG file with path: " + file.getLocalAbsPath())
             #self.log(Level.INFO, "Found a JPG file with path: " + file.getUniquePath())
-            self.filesFound += 1
+            self.filesAnalyzed += 1
+            self.log(Level.INFO, "Files analyzed: " + str(self.filesAnalyzed))
+            
+            #if self.local_settings.getSetting("exif") == "true":
+             #   self.filesAnalyzed += 1
+                
             
             # Analyze the image metadata
             with ExifTool(PATH_MACOS) as et:   
                 metadata = et.get_metadata(file.getLocalAbsPath())
                 #metadata = et.get_metadata(file.getUniquePath())
                 
-            for m in range(0, len(metadata)):
-                if (list(metadata)[m] == "EXIF:Model"):
-                    camera_model = list(metadata.values())[m]
-                    self.filesAnalyzed += 1
-                    break
+            #for m in range(0, len(metadata)):
+             #   if (list(metadata)[m] == "EXIF:Model"):
+              #      camera_model = list(metadata.values())[m]
+               #     self.filesAnalyzed += 1
+                #    break
             
             # Use blackboard class to index blackboard artifacts for keyword search
             blackboard = Case.getCurrentCase().getServices().getBlackboard()
@@ -191,15 +213,103 @@ class ImageMetadataFileIngestModuleWithUI(FileIngestModule):
             artId = blackboard.getOrAddArtifactType("TSK_IMAGE_METADATA", "Image Metadata Analyzer")
             artifact = file.newArtifact(artId.getTypeID())
             
+            for m in range(0, len(metadata)):
+                
+                # Check the GUI box "EXIF"
+                if (self.local_settings.getSetting("exif") == "true") and (list(metadata)[m].startswith("EXIF")):
+                    
+                    # Check the value of the metadata: if it is not a string, convert it to string for a correct printing                    
+                    if type((list(metadata.values())[m])) is not str:
+                        metadata_att = str(list(metadata.values())[m])
+                    else:
+                        metadata_att = list(metadata.values())[m]
+                    
+                    # Add the new Attribute with the value of the metadata analyzed
+                    attId = blackboard.getOrAddAttributeType("TSK_" + list(metadata)[m], BlackboardAttribute.TSK_BLACKBOARD_ATTRIBUTE_VALUE_TYPE.STRING, list(metadata)[m])
+                    attribute = BlackboardAttribute(attId, ImageMetadataFileIngestModuleWithUIFactory.moduleName, metadata_att)
+                    
+                    # Adding the Attribute to the Artifact
+                    try:  
+                        artifact.addAttribute(attribute)
+                    except:
+                        self.log(Level.INFO, "Error adding EXIF Attribute" + list(metadata)[m] + "to the Artifact!")
+                
+                        
+                # Check the GUI box "IPTC"
+                if (self.local_settings.getSetting("iptc") == "true") and (list(metadata)[m].startswith("IPTC")):
+                    
+                    # Check the value of the metadata: if it is not a string, convert it to string for a correct printing                    
+                    if type((list(metadata.values())[m])) is not str:
+                        metadata_att = str(list(metadata.values())[m])
+                    else:
+                        metadata_att = list(metadata.values())[m]
+                    
+                    # Add the new Attribute with the value of the metadata analyzed
+                    attId = blackboard.getOrAddAttributeType("TSK_" + list(metadata)[m], BlackboardAttribute.TSK_BLACKBOARD_ATTRIBUTE_VALUE_TYPE.STRING, list(metadata)[m])
+                    attribute = BlackboardAttribute(attId, ImageMetadataFileIngestModuleWithUIFactory.moduleName, metadata_att)
+                    
+                    # Adding the Attribute to the Artifact
+                    try:  
+                        artifact.addAttribute(attribute)
+                    except:
+                        self.log(Level.INFO, "Error adding IPTC Attribute" + list(metadata)[m] + "to the Artifact!")
+                        
+                        
+                # Check the GUI box "XMP"
+                if (self.local_settings.getSetting("xmp") == "true") and (list(metadata)[m].startswith("XMP")):
+                    
+                    # Check the value of the metadata: if it is not a string, convert it to string for a correct printing                    
+                    if type((list(metadata.values())[m])) is not str:
+                        metadata_att = str(list(metadata.values())[m])
+                    else:
+                        metadata_att = list(metadata.values())[m]
+                    
+                    # Add the new Attribute with the value of the metadata analyzed
+                    attId = blackboard.getOrAddAttributeType("TSK_" + list(metadata)[m], BlackboardAttribute.TSK_BLACKBOARD_ATTRIBUTE_VALUE_TYPE.STRING, list(metadata)[m])
+                    attribute = BlackboardAttribute(attId, ImageMetadataFileIngestModuleWithUIFactory.moduleName, metadata_att)
+                    
+                    # Adding the Attribute to the Artifact
+                    try:  
+                        artifact.addAttribute(attribute)
+                    except:
+                        self.log(Level.INFO, "Error adding XMP Attribute" + list(metadata)[m] + "to the Artifact!")
+                
+                # Add other metadata information found such as "File:", "Composite:", etc.
+                if self.local_settings.getSetting("other") == "true":
+                    
+                    # Check the value of the metadata: if it is not a string, convert it to string for a correct printing                    
+                    if type((list(metadata.values())[m])) is not str:
+                        metadata_att = str(list(metadata.values())[m])
+                    else:
+                        metadata_att = list(metadata.values())[m]
+                    
+                    # Add the new Attribute with the value of the metadata analyzed
+                    attId = blackboard.getOrAddAttributeType("TSK_" + list(metadata)[m], BlackboardAttribute.TSK_BLACKBOARD_ATTRIBUTE_VALUE_TYPE.STRING, list(metadata)[m])
+                    attribute = BlackboardAttribute(attId, ImageMetadataFileIngestModuleWithUIFactory.moduleName, metadata_att)
+                    
+                    # Adding the Attribute to the Artifact
+                    try:  
+                        artifact.addAttribute(attribute)
+                    except:
+                        self.log(Level.INFO, "Error adding other Attribute" + list(metadata)[m] + "to the Artifact!")
+                    
+            
+            # Use blackboard class to index blackboard artifacts for keyword search
+            # blackboard = Case.getCurrentCase().getServices().getBlackboard()
+            
+            # Creating a custom Artifact
+            # artId = blackboard.getOrAddArtifactType("TSK_IMAGE_METADATA", "Image Metadata Analyzer")
+            # artifact = file.newArtifact(artId.getTypeID())
+            
             # Creating new Attributes
-            attId = blackboard.getOrAddAttributeType("TSK_CAMERA_MODEL", BlackboardAttribute.TSK_BLACKBOARD_ATTRIBUTE_VALUE_TYPE.STRING, "Camera Model")
-            attribute = BlackboardAttribute(attId, ImageMetadataFileIngestModuleWithUIFactory.moduleName, camera_model)
+            # attId = blackboard.getOrAddAttributeType("TSK_CAMERA_MODEL", BlackboardAttribute.TSK_BLACKBOARD_ATTRIBUTE_VALUE_TYPE.STRING, "Camera Model")
+            # attribute = BlackboardAttribute(attId, ImageMetadataFileIngestModuleWithUIFactory.moduleName, camera_model)
             
             # Adding the Attribute to the Artifact
-            try:  
-                artifact.addAttribute(attribute)
-            except:
-                self.log(Level.INFO, "Error adding Attribute to the Artifact!")
+            # try:  
+              #  artifact.addAttribute(attribute)
+            # except:
+              #  self.log(Level.INFO, "Error adding Attribute to the Artifact!")
                     
             
             #blackboard.postArtifact(artifact, ImageMetadataFileIngestModuleWithUIFactory.moduleName)
@@ -213,14 +323,13 @@ class ImageMetadataFileIngestModuleWithUI(FileIngestModule):
         return IngestModule.ProcessResult.OK
 
     # Where any shutdown code is run and resources are freed.
-    # TODO: Add any shutdown code that you need here.
     def shutDown(self):
         # As a final part, we'll send a message to the ingest inbox with the number of files found (in this thread)
         message = IngestMessage.createMessage(
             IngestMessage.MessageType.DATA, ImageMetadataFileIngestModuleWithUIFactory.moduleName,
-                str(self.filesFound) + " image files found & " + str(self.filesAnalyzed) + " JPG files analyzed")
+                str(self.filesAnalyzed) + " files analyzed")
         ingestServices = IngestServices.getInstance().postMessage(message)
-        pass
+        #pass
 
 
 
@@ -241,28 +350,77 @@ class ImageMetadataFileIngestModuleWithUISettingsPanel(IngestModuleIngestJobSett
 
     # We get passed in a previous version of the settings so that we can
     # prepopulate the UI
-    # TODO: Update this for your UI
     def __init__(self, settings):
         self.local_settings = settings
         self.initComponents()
         self.customizeComponents()
 
-    # TODO: Update this for your UI
-    def checkBoxEvent(self, event):
-        if self.checkbox.isSelected():
-            self.local_settings.setSetting("camera_model", "true")
+    
+    def exifCheckBoxEvent(self, event):
+        if self.exif_checkbox.isSelected():
+            self.local_settings.setSetting("exif", "true")
         else:
-            self.local_settings.setSetting("camera_model", "false")
+            self.local_settings.setSetting("exif", "false")
+            
+    
+    def iptcCheckBoxEvent(self, event):
+        if self.iptc_checkbox.isSelected():
+            self.local_settings.setSetting("iptc", "true")
+        else:
+            self.local_settings.setSetting("iptc", "false")
+            
+    def xmpCheckBoxEvent(self, event):
+        if self.xmp_checkbox.isSelected():
+            self.local_settings.setSetting("xmp", "true")
+        else:
+            self.local_settings.setSetting("xmp", "false")
+            
+    def otherCheckBoxEvent(self, event):
+        if self.other_checkbox.isSelected():
+            self.local_settings.setSetting("other", "true")
+        else:
+            self.local_settings.setSetting("other", "false")
+            
 
-    # TODO: Update this for your UI
     def initComponents(self):
         self.setLayout(BoxLayout(self, BoxLayout.Y_AXIS))
-        self.checkbox = JCheckBox("Camera Model", actionPerformed=self.checkBoxEvent)
-        self.add(self.checkbox)
+        
+        label1 = JLabel("Select the type of Metadata you want to analyze:")
+        self.add(label1)
+        
+        # EXIF checkbox
+        self.exif_checkbox = JCheckBox("EXIF Metadata", actionPerformed=self.exifCheckBoxEvent)
+        self.add(self.exif_checkbox)
+        
+        # IPTC checkbox
+        self.iptc_checkbox = JCheckBox("IPTC Metadata", actionPerformed=self.iptcCheckBoxEvent)
+        self.add(self.iptc_checkbox)
+        
+        # XMP checkbox
+        self.xmp_checkbox = JCheckBox("XMP Metadata", actionPerformed=self.xmpCheckBoxEvent)
+        self.add(self.xmp_checkbox)
+        
+        # Other checkbox
+        self.other_checkbox = JCheckBox("Other", actionPerformed=self.otherCheckBoxEvent)
+        self.add(self.other_checkbox)
+        
+        label2 = JLabel("Select the type of image files you want to analyze:")
+        self.add(label2)
+        
+        
 
-    # TODO: Update this for your UI
     def customizeComponents(self):
-        self.checkbox.setSelected(self.local_settings.getSetting("camera_model") == "true")
+        # Mantain the GUI EXIF box selected if selected before
+        self.exif_checkbox.setSelected(self.local_settings.getSetting("exif") == "true")
+        
+        # Mantain the GUI IPTC box selected if selected before
+        self.iptc_checkbox.setSelected(self.local_settings.getSetting("iptc") == "true")
+        
+        # Mantain the GUI XMP box selected if selected before
+        self.xmp_checkbox.setSelected(self.local_settings.getSetting("xmp") == "true")
+        
+        # Mantain the GUI Other box selected if selected before
+        self.other_checkbox.setSelected(self.local_settings.getSetting("other") == "true")
 
     # Return the settings used
     def getSettings(self):
