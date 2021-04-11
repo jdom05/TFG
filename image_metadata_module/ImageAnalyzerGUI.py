@@ -73,6 +73,7 @@ from org.sleuthkit.datamodel import TskData
 from org.sleuthkit.datamodel import SleuthkitCase
 from org.sleuthkit.datamodel import AbstractFile
 from org.sleuthkit.autopsy.coreutils import Logger
+from org.sleuthkit.autopsy.coreutils import PlatformUtil
 from java.lang import IllegalArgumentException
 
 from neededLib.exiftool import ExifTool
@@ -213,8 +214,10 @@ class ImageMetadataFileIngestModuleWithUI(FileIngestModule):
             (file.isFile() == False)):
             return IngestModule.ProcessResult.OK
         
+        #progressBar.switchToIndeterminate()
+        
          
-        # At the moment we will only analyze 4 different type of files:
+        # At the moment we will only analyze 5 different type of files:
             # - JPG (JPEG)
             # - PNG (does not support EXIF metadata)
             # - TIFF
@@ -232,23 +235,37 @@ class ImageMetadataFileIngestModuleWithUI(FileIngestModule):
             #self.log(Level.INFO, "Found a JPG file with path: " + file.getUniquePath())
             self.filesAnalyzed += 1
             self.log(Level.INFO, "Files analyzed: " + str(self.filesAnalyzed))
+            #progressBar.progress("Analyzing " + file.getName())
             
             #if self.local_settings.getSetting("exif") == "true":
              #   self.filesAnalyzed += 1
-                
              
+            self.log(Level.INFO, "Platform used: " + PlatformUtil.getOSName())
+            
+            # Check the platform the user is using
+            if "Mac" in PlatformUtil.getOSName():
+                PATH = PATH_MACOS
+                
+            elif "Windows" in PlatformUtil.getOSName():
+                PATH = PATH_WINDOWS
+                    
+                
             # Analyze the image metadata
-            with ExifTool(PATH_MACOS) as et:   
-                metadata = et.get_metadata(file.getLocalAbsPath())
-                #metadata = et.get_metadata(file.getUniquePath())
+            try:
+                with ExifTool(PATH) as et:   
+                    metadata = et.get_metadata(file.getLocalAbsPath())
+                    #metadata = et.get_metadata(file.getUniquePath())
+            except:
+                self.log(Level.WARNING, "Error reading metadata of current file " + file.getName())
     
             
             # Use blackboard class to index blackboard artifacts for keyword search
             blackboard = Case.getCurrentCase().getServices().getBlackboard()
             
             # Creating a custom Artifact
-            artId = blackboard.getOrAddArtifactType("TSK_IMAGE_METADATA", "Image Metadata Analyzer")
+            artId = blackboard.getOrAddArtifactType("TSK_IMAGE_METADATA", "Image Metadata Analyzer") #Blackboard Artifact Type
             artifact = file.newArtifact(artId.getTypeID())
+            
             
             for m in range(0, len(metadata)):
                 
@@ -269,7 +286,7 @@ class ImageMetadataFileIngestModuleWithUI(FileIngestModule):
                     try:  
                         artifact.addAttribute(attribute)
                     except:
-                        self.log(Level.INFO, "Error adding EXIF Attribute" + list(metadata)[m] + "to the Artifact!")
+                        self.log(Level.WARNING, "Error adding EXIF Attribute" + list(metadata)[m] + "to the Artifact!")
                         
                 
                         
@@ -290,7 +307,7 @@ class ImageMetadataFileIngestModuleWithUI(FileIngestModule):
                     try:  
                         artifact.addAttribute(attribute)
                     except:
-                        self.log(Level.INFO, "Error adding IPTC Attribute" + list(metadata)[m] + "to the Artifact!")
+                        self.log(Level.WARNING, "Error adding IPTC Attribute" + list(metadata)[m] + "to the Artifact!")
                         
                         
                 # Check the GUI box "XMP"
@@ -310,10 +327,12 @@ class ImageMetadataFileIngestModuleWithUI(FileIngestModule):
                     try:  
                         artifact.addAttribute(attribute)
                     except:
-                        self.log(Level.INFO, "Error adding XMP Attribute" + list(metadata)[m] + "to the Artifact!")
+                        self.log(Level.WARNING, "Error adding XMP Attribute" + list(metadata)[m] + "to the Artifact!")
                 
                 # Add other metadata information found such as "File:", "Composite:", etc.
-                if self.local_settings.getSetting("other") == "true":
+                if self.local_settings.getSetting("other") == "true" and not (list(metadata)[m].startswith("EXIF") or
+                                                                              list(metadata)[m].startswith("IPTC") or
+                                                                              list(metadata)[m].startswith("XMP")):
                     
                     # Check the value of the metadata: if it is not a string, convert it to string for a correct printing                    
                     if type((list(metadata.values())[m])) is not str:
@@ -329,15 +348,17 @@ class ImageMetadataFileIngestModuleWithUI(FileIngestModule):
                     try:  
                         artifact.addAttribute(attribute)
                     except:
-                        self.log(Level.INFO, "Error adding other Attribute" + list(metadata)[m] + "to the Artifact!")
+                        self.log(Level.WARNING, "Error adding other Attribute" + list(metadata)[m] + "to the Artifact!")
                     
             
             #blackboard.postArtifact(artifact, ImageMetadataFileIngestModuleWithUIFactory.moduleName)
             
+            blackboard.indexArtifact(artifact)
+            
             # Fires an event to notify the UI and others that there is a new artifact
             # So that the UI updates and refreshes with the new artifacts when the module is executed
             IngestServices.getInstance().fireModuleDataEvent(ModuleDataEvent(ImageMetadataFileIngestModuleWithUIFactory.moduleName,
-                                                                             BlackboardArtifact.ARTIFACT_TYPE.TSK_INTERESTING_FILE_HIT, None))
+                                                                             artId, None))
             
 
         return IngestModule.ProcessResult.OK
