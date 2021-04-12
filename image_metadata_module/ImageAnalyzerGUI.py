@@ -50,7 +50,7 @@ import jarray
 import inspect
 from java.lang import System
 from java.util.logging import Level
-from javax.swing import JCheckBox, JLabel
+from javax.swing import JCheckBox, JLabel, JTextField, JButton
 from javax.swing import BoxLayout
 from org.sleuthkit.autopsy.casemodule import Case
 from org.sleuthkit.autopsy.casemodule.services import Services
@@ -242,6 +242,8 @@ class ImageMetadataFileIngestModuleWithUI(FileIngestModule):
              
             self.log(Level.INFO, "Platform used: " + PlatformUtil.getOSName())
             
+            self.log(Level.INFO, "Word searched: " + self.local_settings.getSetting("word_search"))
+            
             # Check the platform the user is using
             if "Mac" in PlatformUtil.getOSName():
                 PATH = PATH_MACOS
@@ -261,6 +263,10 @@ class ImageMetadataFileIngestModuleWithUI(FileIngestModule):
             
             # Use blackboard class to index blackboard artifacts for keyword search
             blackboard = Case.getCurrentCase().getServices().getBlackboard()
+            
+            
+            
+            #============================== start of IMAGE METADATA ANALYSIS ==============================#
             
             # Creating a custom Artifact
             artId = blackboard.getOrAddArtifactType("TSK_IMAGE_METADATA", "Image Metadata Analyzer") #Blackboard Artifact Type
@@ -360,6 +366,34 @@ class ImageMetadataFileIngestModuleWithUI(FileIngestModule):
             IngestServices.getInstance().fireModuleDataEvent(ModuleDataEvent(ImageMetadataFileIngestModuleWithUIFactory.moduleName,
                                                                              artId, None))
             
+            #============================== end of IMAGE METADATA ANALYSIS ==============================#
+            
+            
+            #============================== start of IMAGE METADATA FILTERING ==============================#
+            
+            wordToSearch = self.local_settings.getSetting("word_search")
+            artifact2 = file.newArtifact(BlackboardArtifact.ARTIFACT_TYPE.TSK_INTERESTING_FILE_HIT)
+            
+            for m in range(0, len(metadata)):
+                
+                # Check the value of the metadata: if it is not a string, convert it to string for a correct evaluation                    
+                if type((list(metadata.values())[m])) is not str:
+                    metadata_att = str(list(metadata.values())[m])
+                else:
+                    metadata_att = list(metadata.values())[m]
+                
+                if wordToSearch in metadata_att:
+                    attribute2 = BlackboardAttribute(BlackboardAttribute.ATTRIBUTE_TYPE.TSK_SET_NAME.getTypeID(),
+                                                     ImageMetadataFileIngestModuleWithUIFactory.moduleName, wordToSearch)
+                    artifact2.addAttribute(attribute2)
+                    IngestServices.getInstance().fireModuleDataEvent(ModuleDataEvent(ImageMetadataFileIngestModuleWithUIFactory.moduleName,
+                                                                                     BlackboardArtifact.ARTIFACT_TYPE.TSK_INTERESTING_FILE_HIT, None))
+                    break
+            
+            
+            #============================== end of IMAGE METADATA FILTERING ==============================#
+            
+            
 
         return IngestModule.ProcessResult.OK
 
@@ -453,12 +487,16 @@ class ImageMetadataFileIngestModuleWithUISettingsPanel(IngestModuleIngestJobSett
             self.local_settings.setSetting("heic", "true")
         else:
             self.local_settings.setSetting("heic", "false")
+            
+    def wordCheckBoxEvent(self, event):
+        self.local_settings.setSetting("word_search", self.word_search.getText())
     
     #=============== end CheckBox Events ===============#
             
 
     def initComponents(self):
         self.setLayout(BoxLayout(self, BoxLayout.Y_AXIS))
+        
         
         label1 = JLabel("Select the type of Metadata you want to analyze:")
         self.add(label1)
@@ -478,6 +516,7 @@ class ImageMetadataFileIngestModuleWithUISettingsPanel(IngestModuleIngestJobSett
         # Other checkbox
         self.other_checkbox = JCheckBox("Other", actionPerformed=self.otherCheckBoxEvent)
         self.add(self.other_checkbox)
+        
         
         label2 = JLabel("Select the type of image file you want to analyze:")
         self.add(label2)
@@ -502,6 +541,17 @@ class ImageMetadataFileIngestModuleWithUISettingsPanel(IngestModuleIngestJobSett
         self.heic_checkbox = JCheckBox("HEIC", actionPerformed=self.heicCheckBoxEvent)
         self.add(self.heic_checkbox)
         
+        
+        self.label3 = JLabel("Write the word you want to search in the metadata of the images:")
+        self.add(self.label3)
+        
+        self.word_search = JTextField()
+        self.add(self.word_search)
+        #self.word_search.setAction(actionPerformed=self.wordSearchTextField)
+        #self.local_settings.setSetting("word_search", self.word_search.getText())
+        
+        self.word_search_button = JButton("Search metadata word", actionPerformed=self.wordCheckBoxEvent)
+        self.add(self.word_search_button)
         
 
     def customizeComponents(self):
