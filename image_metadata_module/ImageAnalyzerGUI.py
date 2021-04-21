@@ -50,8 +50,9 @@ import jarray
 import inspect
 from java.lang import System
 from java.util.logging import Level
-from javax.swing import JCheckBox, JLabel, JTextField, JButton
-from javax.swing import BoxLayout
+from java.awt import Panel, BorderLayout, EventQueue, GridLayout, GridBagLayout, GridBagConstraints, Font, Color 
+from javax.swing import JCheckBox, JLabel, JTextField, JButton, JFrame, JComboBox, JProgressBar, JMenuBar, JMenuItem, JTabbedPane, JPasswordField, SwingConstants, BoxLayout, JPanel
+from javax.swing.border import TitledBorder, EtchedBorder, EmptyBorder
 from org.sleuthkit.autopsy.casemodule import Case
 from org.sleuthkit.autopsy.casemodule.services import Services
 from org.sleuthkit.autopsy.ingest import DataSourceIngestModule
@@ -77,6 +78,7 @@ from org.sleuthkit.autopsy.coreutils import PlatformUtil
 from java.lang import IllegalArgumentException
 
 from neededLib.exiftool import ExifTool
+import re
 
 PATH_WINDOWS = "C:\WINDOWS\exiftool.exe" #WINDOWS path to the exiftool executable
 PATH_MACOS = "/usr/local/bin/exiftool" #MACOS path to the exiftool executable
@@ -268,127 +270,243 @@ class ImageMetadataFileIngestModuleWithUI(FileIngestModule):
             
             #============================== start of IMAGE METADATA ANALYSIS ==============================#
             
-            # Creating a custom Artifact
-            artId = blackboard.getOrAddArtifactType("TSK_IMAGE_METADATA", "Image Metadata Analyzer") #Blackboard Artifact Type
-            artifact = file.newArtifact(artId.getTypeID())
+            # If the Filter Mode checkbox is selected we will not add the analyzed images with its metadata in the artifact we have in the blackboard
+            # Because if we only wanted to execute filters, we would have repited images (in the Image Metadata Analyzer artifact) every time we execute the module
+            if (self.local_settings.getSetting("filter") == "false"):
             
-            
-            for m in range(0, len(metadata)):
+                # Creating a custom Artifact
+                artId = blackboard.getOrAddArtifactType("TSK_IMAGE_METADATA", "Image Metadata Analyzer") #Blackboard Artifact Type
+                artifact = file.newArtifact(artId.getTypeID())
                 
-                # Check the GUI box "EXIF"
-                if (self.local_settings.getSetting("exif") == "true") and (list(metadata)[m].startswith("EXIF")):
+                
+                for m in range(0, len(metadata)):
                     
-                    # Check the value of the metadata: if it is not a string, convert it to string for a correct printing                    
-                    if type((list(metadata.values())[m])) is not str:
-                        metadata_att = str(list(metadata.values())[m])
-                    else:
-                        metadata_att = list(metadata.values())[m]
+                    # Check the GUI box "EXIF"
+                    if (self.local_settings.getSetting("exif") == "true") and (list(metadata)[m].startswith("EXIF")):
+                        
+                        # Check the value of the metadata: if it is not a string, convert it to string for a correct printing                    
+                        if type((list(metadata.values())[m])) is not str:
+                            metadata_att = str(list(metadata.values())[m])
+                        else:
+                            metadata_att = list(metadata.values())[m]
+                        
+                        # Add the new Attribute with the value of the metadata analyzed
+                        attId = blackboard.getOrAddAttributeType("TSK_" + list(metadata)[m], BlackboardAttribute.TSK_BLACKBOARD_ATTRIBUTE_VALUE_TYPE.STRING, list(metadata)[m])
+                        attribute = BlackboardAttribute(attId, ImageMetadataFileIngestModuleWithUIFactory.moduleName, metadata_att)
+                        
+                        # Adding the Attribute to the Artifact
+                        try:  
+                            artifact.addAttribute(attribute)
+                        except:
+                            self.log(Level.WARNING, "Error adding EXIF Attribute" + list(metadata)[m] + "to the Artifact!")
+                            
                     
-                    # Add the new Attribute with the value of the metadata analyzed
-                    attId = blackboard.getOrAddAttributeType("TSK_" + list(metadata)[m], BlackboardAttribute.TSK_BLACKBOARD_ATTRIBUTE_VALUE_TYPE.STRING, list(metadata)[m])
-                    attribute = BlackboardAttribute(attId, ImageMetadataFileIngestModuleWithUIFactory.moduleName, metadata_att)
+                            
+                    # Check the GUI box "IPTC"
+                    if (self.local_settings.getSetting("iptc") == "true") and (list(metadata)[m].startswith("IPTC")):
+                        
+                        # Check the value of the metadata: if it is not a string, convert it to string for a correct printing                    
+                        if type((list(metadata.values())[m])) is not str:
+                            metadata_att = str(list(metadata.values())[m])
+                        else:
+                            metadata_att = list(metadata.values())[m]
+                        
+                        # Add the new Attribute with the value of the metadata analyzed
+                        attId = blackboard.getOrAddAttributeType("TSK_" + list(metadata)[m], BlackboardAttribute.TSK_BLACKBOARD_ATTRIBUTE_VALUE_TYPE.STRING, list(metadata)[m])
+                        attribute = BlackboardAttribute(attId, ImageMetadataFileIngestModuleWithUIFactory.moduleName, metadata_att)
+                        
+                        # Adding the Attribute to the Artifact
+                        try:  
+                            artifact.addAttribute(attribute)
+                        except:
+                            self.log(Level.WARNING, "Error adding IPTC Attribute" + list(metadata)[m] + "to the Artifact!")
+                            
+                            
+                    # Check the GUI box "XMP"
+                    if (self.local_settings.getSetting("xmp") == "true") and (list(metadata)[m].startswith("XMP")):
+                        
+                        # Check the value of the metadata: if it is not a string, convert it to string for a correct printing                    
+                        if type((list(metadata.values())[m])) is not str:
+                            metadata_att = str(list(metadata.values())[m])
+                        else:
+                            metadata_att = list(metadata.values())[m]
+                        
+                        # Add the new Attribute with the value of the metadata analyzed
+                        attId = blackboard.getOrAddAttributeType("TSK_" + list(metadata)[m], BlackboardAttribute.TSK_BLACKBOARD_ATTRIBUTE_VALUE_TYPE.STRING, list(metadata)[m])
+                        attribute = BlackboardAttribute(attId, ImageMetadataFileIngestModuleWithUIFactory.moduleName, metadata_att)
+                        
+                        # Adding the Attribute to the Artifact
+                        try:  
+                            artifact.addAttribute(attribute)
+                        except:
+                            self.log(Level.WARNING, "Error adding XMP Attribute" + list(metadata)[m] + "to the Artifact!")
                     
-                    # Adding the Attribute to the Artifact
-                    try:  
-                        artifact.addAttribute(attribute)
-                    except:
-                        self.log(Level.WARNING, "Error adding EXIF Attribute" + list(metadata)[m] + "to the Artifact!")
+                    # Add other metadata information found such as "File:", "Composite:", etc.
+                    if self.local_settings.getSetting("other") == "true" and not (list(metadata)[m].startswith("EXIF") or
+                                                                                  list(metadata)[m].startswith("IPTC") or
+                                                                                  list(metadata)[m].startswith("XMP")):
+                        
+                        # Check the value of the metadata: if it is not a string, convert it to string for a correct printing                    
+                        if type((list(metadata.values())[m])) is not str:
+                            metadata_att = str(list(metadata.values())[m])
+                        else:
+                            metadata_att = list(metadata.values())[m]
+                        
+                        # Add the new Attribute with the value of the metadata analyzed
+                        attId = blackboard.getOrAddAttributeType("TSK_" + list(metadata)[m], BlackboardAttribute.TSK_BLACKBOARD_ATTRIBUTE_VALUE_TYPE.STRING, list(metadata)[m])
+                        attribute = BlackboardAttribute(attId, ImageMetadataFileIngestModuleWithUIFactory.moduleName, metadata_att)
+                        
+                        # Adding the Attribute to the Artifact
+                        try:  
+                            artifact.addAttribute(attribute)
+                        except:
+                            self.log(Level.WARNING, "Error adding other Attribute" + list(metadata)[m] + "to the Artifact!")
                         
                 
-                        
-                # Check the GUI box "IPTC"
-                if (self.local_settings.getSetting("iptc") == "true") and (list(metadata)[m].startswith("IPTC")):
-                    
-                    # Check the value of the metadata: if it is not a string, convert it to string for a correct printing                    
-                    if type((list(metadata.values())[m])) is not str:
-                        metadata_att = str(list(metadata.values())[m])
-                    else:
-                        metadata_att = list(metadata.values())[m]
-                    
-                    # Add the new Attribute with the value of the metadata analyzed
-                    attId = blackboard.getOrAddAttributeType("TSK_" + list(metadata)[m], BlackboardAttribute.TSK_BLACKBOARD_ATTRIBUTE_VALUE_TYPE.STRING, list(metadata)[m])
-                    attribute = BlackboardAttribute(attId, ImageMetadataFileIngestModuleWithUIFactory.moduleName, metadata_att)
-                    
-                    # Adding the Attribute to the Artifact
-                    try:  
-                        artifact.addAttribute(attribute)
-                    except:
-                        self.log(Level.WARNING, "Error adding IPTC Attribute" + list(metadata)[m] + "to the Artifact!")
-                        
-                        
-                # Check the GUI box "XMP"
-                if (self.local_settings.getSetting("xmp") == "true") and (list(metadata)[m].startswith("XMP")):
-                    
-                    # Check the value of the metadata: if it is not a string, convert it to string for a correct printing                    
-                    if type((list(metadata.values())[m])) is not str:
-                        metadata_att = str(list(metadata.values())[m])
-                    else:
-                        metadata_att = list(metadata.values())[m]
-                    
-                    # Add the new Attribute with the value of the metadata analyzed
-                    attId = blackboard.getOrAddAttributeType("TSK_" + list(metadata)[m], BlackboardAttribute.TSK_BLACKBOARD_ATTRIBUTE_VALUE_TYPE.STRING, list(metadata)[m])
-                    attribute = BlackboardAttribute(attId, ImageMetadataFileIngestModuleWithUIFactory.moduleName, metadata_att)
-                    
-                    # Adding the Attribute to the Artifact
-                    try:  
-                        artifact.addAttribute(attribute)
-                    except:
-                        self.log(Level.WARNING, "Error adding XMP Attribute" + list(metadata)[m] + "to the Artifact!")
+                #blackboard.postArtifact(artifact, ImageMetadataFileIngestModuleWithUIFactory.moduleName)
                 
-                # Add other metadata information found such as "File:", "Composite:", etc.
-                if self.local_settings.getSetting("other") == "true" and not (list(metadata)[m].startswith("EXIF") or
-                                                                              list(metadata)[m].startswith("IPTC") or
-                                                                              list(metadata)[m].startswith("XMP")):
-                    
-                    # Check the value of the metadata: if it is not a string, convert it to string for a correct printing                    
-                    if type((list(metadata.values())[m])) is not str:
-                        metadata_att = str(list(metadata.values())[m])
-                    else:
-                        metadata_att = list(metadata.values())[m]
-                    
-                    # Add the new Attribute with the value of the metadata analyzed
-                    attId = blackboard.getOrAddAttributeType("TSK_" + list(metadata)[m], BlackboardAttribute.TSK_BLACKBOARD_ATTRIBUTE_VALUE_TYPE.STRING, list(metadata)[m])
-                    attribute = BlackboardAttribute(attId, ImageMetadataFileIngestModuleWithUIFactory.moduleName, metadata_att)
-                    
-                    # Adding the Attribute to the Artifact
-                    try:  
-                        artifact.addAttribute(attribute)
-                    except:
-                        self.log(Level.WARNING, "Error adding other Attribute" + list(metadata)[m] + "to the Artifact!")
-                    
-            
-            #blackboard.postArtifact(artifact, ImageMetadataFileIngestModuleWithUIFactory.moduleName)
-            
-            blackboard.indexArtifact(artifact)
-            
-            # Fires an event to notify the UI and others that there is a new artifact
-            # So that the UI updates and refreshes with the new artifacts when the module is executed
-            IngestServices.getInstance().fireModuleDataEvent(ModuleDataEvent(ImageMetadataFileIngestModuleWithUIFactory.moduleName,
-                                                                             artId, None))
-            
+                blackboard.indexArtifact(artifact)
+                
+                # Fires an event to notify the UI and others that there is a new artifact
+                # So that the UI updates and refreshes with the new artifacts when the module is executed
+                IngestServices.getInstance().fireModuleDataEvent(ModuleDataEvent(ImageMetadataFileIngestModuleWithUIFactory.moduleName,
+                                                                                 artId, None))
+                
             #============================== end of IMAGE METADATA ANALYSIS ==============================#
             
             
             #============================== start of IMAGE METADATA FILTERING ==============================#
             
+            # Different levels:
+            #   - 1st level => basic one condition filter
+            #   - 2nd level => "AND" filter ("" + and + "")
+            #   - 3rd level => "OR" filter ("" + or + "")
+            #   - 4th level => "NOT" filter (not + "")
+            #   - TO DO: 5th level => "AND", "OR", "NOT" mixed filter
+            
+            validation = 0
+            
+            pattern_1 = "[a-zA-Z0-9]+"
+
+            pattern_2 = "[a-zA-Z0-9]+\s(and)\s[a-zA-Z0-9]+"
+            
+            pattern_3 = "[a-zA-Z0-9]+\s(or)\s[a-zA-Z0-9]+"
+            
+            pattern_4 = "(not)\s[a-zA-Z0-9]+"
+            
             wordToSearch = self.local_settings.getSetting("word_search")
             artifact2 = file.newArtifact(BlackboardArtifact.ARTIFACT_TYPE.TSK_INTERESTING_FILE_HIT)
             
-            for m in range(0, len(metadata)):
+            # 2nd LEVEL: "AND". 
+            #   - We can include as many "and" as we want: Canon and iPhone and Jordi and ...    
+            if (re.search(pattern_2, wordToSearch)):
+                validation = 0
+                output = re.split("\sand\s", wordToSearch) # Output is a list containing the words to search
                 
-                # Check the value of the metadata: if it is not a string, convert it to string for a correct evaluation                    
-                if type((list(metadata.values())[m])) is not str:
-                    metadata_att = str(list(metadata.values())[m])
-                else:
-                    metadata_att = list(metadata.values())[m]
-                
-                if wordToSearch in metadata_att:
-                    attribute2 = BlackboardAttribute(BlackboardAttribute.ATTRIBUTE_TYPE.TSK_SET_NAME.getTypeID(),
+                for x in output:
+                    
+                    for m in range(0, len(metadata)):
+                        
+                        # Check the value of the metadata: if it is not a string, convert it to string for a correct evaluation 
+                        # metadata_att is the str of each attribute                   
+                        if type((list(metadata.values())[m])) is not str:
+                            metadata_att = str(list(metadata.values())[m])
+                        else:
+                            metadata_att = list(metadata.values())[m]
+                            
+                        if x in metadata_att:
+                            validation += 1
+                            break
+                        
+                    if validation == len(output):
+                        attribute2 = BlackboardAttribute(BlackboardAttribute.ATTRIBUTE_TYPE.TSK_SET_NAME.getTypeID(),
                                                      ImageMetadataFileIngestModuleWithUIFactory.moduleName, wordToSearch)
+                        artifact2.addAttribute(attribute2)
+                        IngestServices.getInstance().fireModuleDataEvent(ModuleDataEvent(ImageMetadataFileIngestModuleWithUIFactory.moduleName,
+                                                                                         BlackboardArtifact.ARTIFACT_TYPE.TSK_INTERESTING_FILE_HIT, None))
+                        break
+                        
+                            
+            # 3rd LEVEL: "OR". 
+            #   - We can include as many "or" as we want: Canon or iPhone or Jordi or ...          
+            elif (re.search(pattern_3, wordToSearch)):
+                validation = 0
+                output = re.split("\sor\s", wordToSearch) # Output is a list containing the words to search
+                
+                for x in output:
+                    
+                    for m in range(0, len(metadata)):
+                        
+                        # Check the value of the metadata: if it is not a string, convert it to string for a correct evaluation 
+                        # metadata_att is the str of each attribute                   
+                        if type((list(metadata.values())[m])) is not str:
+                            metadata_att = str(list(metadata.values())[m])
+                        else:
+                            metadata_att = list(metadata.values())[m]
+                                       
+                        if x in metadata_att:
+                            validation += 1
+                            
+                    if validation > 0:
+                        attribute2 = BlackboardAttribute(BlackboardAttribute.ATTRIBUTE_TYPE.TSK_SET_NAME.getTypeID(),
+                                                     ImageMetadataFileIngestModuleWithUIFactory.moduleName, wordToSearch)
+                        artifact2.addAttribute(attribute2)
+                        IngestServices.getInstance().fireModuleDataEvent(ModuleDataEvent(ImageMetadataFileIngestModuleWithUIFactory.moduleName,
+                                                                                         BlackboardArtifact.ARTIFACT_TYPE.TSK_INTERESTING_FILE_HIT, None))
+                        break
+                                  
+            # 4th LEVEL: "NOT". 
+            #   - We can only include one "not"
+            elif (re.search(pattern_4, wordToSearch)):
+                validation = 0
+                output = re.sub("not\s", "", wordToSearch) # Output is a list containing the words to search
+                    
+                for m in range(0, len(metadata)):
+                    
+                    # Check the value of the metadata: if it is not a string, convert it to string for a correct evaluation 
+                    # metadata_att is the str of each attribute                   
+                    if type((list(metadata.values())[m])) is not str:
+                        metadata_att = str(list(metadata.values())[m])
+                    else:
+                        metadata_att = list(metadata.values())[m]
+                                   
+                    if output in metadata_att:
+                        validation += 1
+                        
+                if validation == 0:
+                    attribute2 = BlackboardAttribute(BlackboardAttribute.ATTRIBUTE_TYPE.TSK_SET_NAME.getTypeID(),
+                                                 ImageMetadataFileIngestModuleWithUIFactory.moduleName, wordToSearch)
                     artifact2.addAttribute(attribute2)
                     IngestServices.getInstance().fireModuleDataEvent(ModuleDataEvent(ImageMetadataFileIngestModuleWithUIFactory.moduleName,
                                                                                      BlackboardArtifact.ARTIFACT_TYPE.TSK_INTERESTING_FILE_HIT, None))
-                    break
+                
+            # 1st LEVEL: One word. 
+            #   - We can only include one word to search
+            elif (re.search(pattern_1, wordToSearch)):
+                validation = 0
+                output = wordToSearch
+                    
+                for m in range(0, len(metadata)):
+                    
+                    # Check the value of the metadata: if it is not a string, convert it to string for a correct evaluation 
+                    # metadata_att is the str of each attribute                   
+                    if type((list(metadata.values())[m])) is not str:
+                        metadata_att = str(list(metadata.values())[m])
+                    else:
+                        metadata_att = list(metadata.values())[m]
+                                   
+                    if output in metadata_att:
+                        attribute2 = BlackboardAttribute(BlackboardAttribute.ATTRIBUTE_TYPE.TSK_SET_NAME.getTypeID(),
+                                                 ImageMetadataFileIngestModuleWithUIFactory.moduleName, wordToSearch)
+                        artifact2.addAttribute(attribute2)
+                        IngestServices.getInstance().fireModuleDataEvent(ModuleDataEvent(ImageMetadataFileIngestModuleWithUIFactory.moduleName,
+                                                                                         BlackboardArtifact.ARTIFACT_TYPE.TSK_INTERESTING_FILE_HIT, None))
+                        break
+                    
+            else:
+                
+                self.log(Level.WARNING, "Incorrect filter's input!")
+                
             
             
             #============================== end of IMAGE METADATA FILTERING ==============================#
@@ -490,68 +608,115 @@ class ImageMetadataFileIngestModuleWithUISettingsPanel(IngestModuleIngestJobSett
             
     def wordCheckBoxEvent(self, event):
         self.local_settings.setSetting("word_search", self.word_search.getText())
+        
+    def filterChekBoxEvent(self, event):
+        if self.filter_checkbox.isSelected():
+            self.local_settings.setSetting("filter", "true")
+        else:
+            self.local_settings.setSetting("filter", "false")
     
     #=============== end CheckBox Events ===============#
             
 
     def initComponents(self):
-        self.setLayout(BoxLayout(self, BoxLayout.Y_AXIS))
+        #self.setLayout(BoxLayout(self, BoxLayout.Y_AXIS))
+        self.setLayout(None)
         
+        title1 = JLabel("IMAGE METADATA ANALYZER")
+        title1.setHorizontalAlignment(SwingConstants.LEFT)
+        title1.setFont(Font("Tahoma", Font.BOLD, 14))
+        title1.setBounds(0, 10, 300, 20)
+        self.add(title1)
         
         label1 = JLabel("Select the type of Metadata you want to analyze:")
+        label1.setHorizontalAlignment(SwingConstants.LEFT)
+        label1.setFont(Font("Default", Font.PLAIN, 11))
+        label1.setBounds(0, 40, 300, 20)
         self.add(label1)
         
         # EXIF checkbox
         self.exif_checkbox = JCheckBox("EXIF Metadata", actionPerformed=self.exifCheckBoxEvent)
+        self.exif_checkbox.setBounds(5, 60, 110, 20)
         self.add(self.exif_checkbox)
         
         # IPTC checkbox
         self.iptc_checkbox = JCheckBox("IPTC Metadata", actionPerformed=self.iptcCheckBoxEvent)
+        self.iptc_checkbox.setBounds(125, 60, 110, 20)
         self.add(self.iptc_checkbox)
         
         # XMP checkbox
         self.xmp_checkbox = JCheckBox("XMP Metadata", actionPerformed=self.xmpCheckBoxEvent)
+        self.xmp_checkbox.setBounds(5, 80, 110, 20)
         self.add(self.xmp_checkbox)
         
         # Other checkbox
         self.other_checkbox = JCheckBox("Other", actionPerformed=self.otherCheckBoxEvent)
+        self.other_checkbox.setBounds(125, 80, 110, 20)
         self.add(self.other_checkbox)
         
         
         label2 = JLabel("Select the type of image file you want to analyze:")
+        label2.setHorizontalAlignment(SwingConstants.LEFT)
+        label2.setFont(Font("Default", Font.PLAIN, 11))
+        label2.setBounds(0, 110, 300, 20)
         self.add(label2)
         
         # JPG checkbox
         self.jpg_checkbox = JCheckBox("JPG (JPEG)", actionPerformed=self.jpgCheckBoxEvent)
+        self.jpg_checkbox.setBounds(5, 130, 80, 20)
         self.add(self.jpg_checkbox)
         
         # PNG checkbox
         self.png_checkbox = JCheckBox("PNG", actionPerformed=self.pngCheckBoxEvent)
+        self.png_checkbox.setBounds(100, 130, 80, 20)
         self.add(self.png_checkbox)
         
         # TIFF checkbox
         self.tiff_checkbox = JCheckBox("TIFF", actionPerformed=self.tiffCheckBoxEvent)
+        self.tiff_checkbox.setBounds(195, 130, 80, 20)
         self.add(self.tiff_checkbox)
         
         # GIF checkbox
         self.gif_checkbox = JCheckBox("GIF", actionPerformed=self.gifCheckBoxEvent)
+        self.gif_checkbox.setBounds(5, 150, 80, 20)
         self.add(self.gif_checkbox)
         
         # HEIC checkbox
         self.heic_checkbox = JCheckBox("HEIC", actionPerformed=self.heicCheckBoxEvent)
+        self.heic_checkbox.setBounds(100, 150, 80, 20)
         self.add(self.heic_checkbox)
         
+        title2 = JLabel("IMAGE METADATA FILTER")
+        title2.setHorizontalAlignment(SwingConstants.LEFT)
+        title2.setFont(Font("Tahoma", Font.BOLD, 14))
+        title2.setBounds(0, 190, 300, 20)
+        self.add(title2)
         
-        self.label3 = JLabel("Write the word you want to search in the metadata of the images:")
-        self.add(self.label3)
+        label3 = JLabel("Write the filter you want to introduce and search it:")
+        label3.setHorizontalAlignment(SwingConstants.LEFT)
+        label3.setFont(Font("Default", Font.PLAIN, 11))
+        label3.setBounds(0, 220, 300, 20)
+        self.add(label3)
+        
+        label3_1 = JLabel("For example: Canon or iPhone")
+        label3_1.setHorizontalAlignment(SwingConstants.LEFT)
+        label3_1.setFont(Font("Default", Font.ITALIC, 8))
+        label3_1.setBounds(0, 233, 300, 20)
+        self.add(label3_1)
         
         self.word_search = JTextField()
+        self.word_search.setBounds(5, 250, 220, 23)
         self.add(self.word_search)
         #self.word_search.setAction(actionPerformed=self.wordSearchTextField)
         #self.local_settings.setSetting("word_search", self.word_search.getText())
         
-        self.word_search_button = JButton("Search metadata word", actionPerformed=self.wordCheckBoxEvent)
+        self.word_search_button = JButton("Search!", actionPerformed=self.wordCheckBoxEvent)
+        self.word_search_button.setBounds(230, 250, 80, 22)
         self.add(self.word_search_button)
+        
+        self.filter_checkbox = JCheckBox("Use only the Image Metadata Filter", actionPerformed=self.filterChekBoxEvent)
+        self.filter_checkbox.setBounds(5, 280, 300, 20)
+        self.add(self.filter_checkbox)
         
 
     def customizeComponents(self):
@@ -581,6 +746,9 @@ class ImageMetadataFileIngestModuleWithUISettingsPanel(IngestModuleIngestJobSett
         
         # Mantain the GUI HEIC box selected if selected before
         self.heic_checkbox.setSelected(self.local_settings.getSetting("heic") == "true")
+        
+        # Mantain the GUI Filter box selected if selected before
+        self.filter_checkbox.setSelected(self.local_settings.getSetting("filter") == "true")
 
     # Return the settings used
     def getSettings(self):
