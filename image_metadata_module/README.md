@@ -9,7 +9,12 @@ Make sure to install `exiftool` in the proper *PATH*:
 - **Windows**: `C:\WINDOWS\exiftool.exe`
 - **MacOS**: `/usr/local/bin/exiftool`
 
-
+## Image Metadata Filter
+- 1st level: one word filter (ex: Canon)
+- 2nd level: 'and' filter (ex: Canon and Jordi)
+- 3rd level: 'or' filter (ex: iPhone or Canon)
+- 4th level: 'not' filter (ex: not iPhone)
+- **TO DO** 5th level: 'and', 'or' and 'not' combined filter
 
  
 
