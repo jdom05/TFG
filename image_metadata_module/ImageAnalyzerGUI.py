@@ -201,6 +201,7 @@ class ImageMetadataFileIngestModuleWithUI(FileIngestModule):
             self.log(Level.INFO, "heic is set")
         else:
             self.log(Level.INFO, "heic is not set")
+            
 
 
         # Throw an IngestModule.IngestModuleException exception if there was a problem setting up
@@ -217,7 +218,6 @@ class ImageMetadataFileIngestModuleWithUI(FileIngestModule):
             return IngestModule.ProcessResult.OK
         
         #progressBar.switchToIndeterminate()
-        
          
         # At the moment we will only analyze 5 different type of files:
             # - JPG (JPEG)
@@ -272,7 +272,7 @@ class ImageMetadataFileIngestModuleWithUI(FileIngestModule):
             
             # If the Filter Mode checkbox is selected we will not add the analyzed images with its metadata in the artifact we have in the blackboard
             # Because if we only wanted to execute filters, we would have repited images (in the Image Metadata Analyzer artifact) every time we execute the module
-            if (self.local_settings.getSetting("filter") == "false"):
+            if not self.local_settings.getSetting("filter") == "true":
             
                 # Creating a custom Artifact
                 artId = blackboard.getOrAddArtifactType("TSK_IMAGE_METADATA", "Image Metadata Analyzer") #Blackboard Artifact Type
@@ -395,6 +395,8 @@ class ImageMetadataFileIngestModuleWithUI(FileIngestModule):
             pattern_4 = "(not)\s[a-zA-Z0-9]+"
             
             wordToSearch = self.local_settings.getSetting("word_search")
+            self.log(Level.INFO, "wordToSearch: " + wordToSearch)
+            
             artifact2 = file.newArtifact(BlackboardArtifact.ARTIFACT_TYPE.TSK_INTERESTING_FILE_HIT)
             
             # 2nd LEVEL: "AND". 
@@ -705,18 +707,19 @@ class ImageMetadataFileIngestModuleWithUISettingsPanel(IngestModuleIngestJobSett
         self.add(label3_1)
         
         self.word_search = JTextField()
-        self.word_search.setBounds(5, 250, 220, 23)
+        self.word_search.setBounds(5, 250, 280, 23)
         self.add(self.word_search)
         #self.word_search.setAction(actionPerformed=self.wordSearchTextField)
         #self.local_settings.setSetting("word_search", self.word_search.getText())
         
-        self.word_search_button = JButton("Search!", actionPerformed=self.wordCheckBoxEvent)
-        self.word_search_button.setBounds(230, 250, 80, 22)
-        self.add(self.word_search_button)
-        
         self.filter_checkbox = JCheckBox("Use only the Image Metadata Filter", actionPerformed=self.filterChekBoxEvent)
-        self.filter_checkbox.setBounds(5, 280, 300, 20)
+        self.filter_checkbox.setBounds(5, 275, 300, 20)
         self.add(self.filter_checkbox)
+        
+        self.word_search_button = JButton("Load Module!", actionPerformed=self.wordCheckBoxEvent)
+        self.word_search_button.setHorizontalAlignment(SwingConstants.CENTER)
+        self.word_search_button.setBounds(60, 305, 160, 22)
+        self.add(self.word_search_button)
         
 
     def customizeComponents(self):
