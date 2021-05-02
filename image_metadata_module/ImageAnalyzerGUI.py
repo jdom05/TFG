@@ -78,30 +78,30 @@ from org.sleuthkit.autopsy.coreutils import PlatformUtil
 from java.lang import IllegalArgumentException
 
 from neededLib.exiftool import ExifTool
+from neededLib import ImageAnalyzerLib
 import re
 
 PATH_WINDOWS = "C:\WINDOWS\exiftool.exe" #WINDOWS path to the exiftool executable
 PATH_MACOS = "/usr/local/bin/exiftool" #MACOS path to the exiftool executable
 
-# TODO: Rename this to something more specific
+
 class ImageMetadataFileIngestModuleWithUIFactory(IngestModuleFactoryAdapter):
     def __init__(self):
         self.settings = None
 
-    # TODO: give it a unique name.  Will be shown in module list, logs, etc.
+    # Give it a unique name.  Will be shown in module list, logs, etc.
     moduleName = "Image Metadata Analyzer with GUI"
 
     def getModuleDisplayName(self):
         return self.moduleName
 
-    # TODO: Give it a description
+    # Give it a description
     def getModuleDescription(self):
         return "Autopsy module for automated analysis of image metadata."
 
     def getModuleVersionNumber(self):
         return "1.0"
 
-    # TODO: Update class name to one that you create below
     def getDefaultIngestJobSettings(self):
         return GenericIngestModuleJobSettings()
     
@@ -148,76 +148,21 @@ class ImageMetadataFileIngestModuleWithUI(FileIngestModule):
     def startUp(self, context):
         self.filesAnalyzed = 0
         
-        # Determine if user configured exif in UI
-        if self.local_settings.getSetting("exif") == "true":
-            self.log(Level.INFO, "exif is set")
-        else:
-            self.log(Level.INFO, "exif is not set")
-            
-        # Determine if user configured iptc in UI
-        if self.local_settings.getSetting("iptc") == "true":
-            self.log(Level.INFO, "iptc is set")
-        else:
-            self.log(Level.INFO, "iptc is not set")
-            
-        # Determine if user configured xmp in UI
-        if self.local_settings.getSetting("xmp") == "true":
-            self.log(Level.INFO, "xmp is set")
-        else:
-            self.log(Level.INFO, "xmp is not set")
-            
-        # Determine if user configured other in UI
-        if self.local_settings.getSetting("other") == "true":
-            self.log(Level.INFO, "other is set")
-        else:
-            self.log(Level.INFO, "other is not set")
-            
-        # Determine if user configured jpg in UI
-        if self.local_settings.getSetting("jpg") == "true":
-            self.log(Level.INFO, "jpg is set")
-        else:
-            self.log(Level.INFO, "jpg is not set")
-            
-        # Determine if user configured png in UI
-        if self.local_settings.getSetting("png") == "true":
-            self.log(Level.INFO, "png is set")
-        else:
-            self.log(Level.INFO, "png is not set")
-            
-        # Determine if user configured tiff in UI
-        if self.local_settings.getSetting("tiff") == "true":
-            self.log(Level.INFO, "tiff is set")
-        else:
-            self.log(Level.INFO, "tiff is not set")
-            
-        # Determine if user configured gif in UI
-        if self.local_settings.getSetting("gif") == "true":
-            self.log(Level.INFO, "gif is set")
-        else:
-            self.log(Level.INFO, "gif is not set")
-            
-        # Determine if user configured heic in UI
-        if self.local_settings.getSetting("heic") == "true":
-            self.log(Level.INFO, "heic is set")
-        else:
-            self.log(Level.INFO, "heic is not set")
-            
+        # We start the logs that gives us information about if a box of the GUI has been set or not
+        ImageAnalyzerLib.startUpLogs(self)
 
-
-        # Throw an IngestModule.IngestModuleException exception if there was a problem setting up
-        # raise IngestModuleException("Oh No!")
         pass
 
-    # Where the analysis is done.  Each file will be passed into here.
+    # Where the analysis is done. Each file will be passed into here.
     # Add your analysis code in here.
     def process(self, file):
+        
        # Skip non-files
         if ((file.getType() == TskData.TSK_DB_FILES_TYPE_ENUM.UNALLOC_BLOCKS) or
             (file.getType() == TskData.TSK_DB_FILES_TYPE_ENUM.UNUSED_BLOCKS) or
             (file.isFile() == False)):
             return IngestModule.ProcessResult.OK
         
-        #progressBar.switchToIndeterminate()
          
         # At the moment we will only analyze 5 different type of files:
             # - JPG (JPEG)
@@ -225,6 +170,7 @@ class ImageMetadataFileIngestModuleWithUI(FileIngestModule):
             # - TIFF
             # - GIF (does not support IPTC metadata)
             # - HEIC (supports EXIF and XMP, but IPTC ??)
+        # If the file corresponds with one of the 5 types and the box is selected to analyze that specific file, we start the analysis
         if (
             (file.getName().lower().endswith(".jpg") and self.local_settings.getSetting("jpg") == "true") or
             (file.getName().lower().endswith(".png") and self.local_settings.getSetting("png") == "true") or
@@ -233,14 +179,8 @@ class ImageMetadataFileIngestModuleWithUI(FileIngestModule):
             (file.getName().lower().endswith(".heic") and self.local_settings.getSetting("heic") == "true")
             ):
             
-            self.log(Level.INFO, "Found a image file with path: " + file.getLocalAbsPath())
+            self.log(Level.INFO, "Found an image file with path: " + file.getLocalAbsPath())
             #self.log(Level.INFO, "Found a JPG file with path: " + file.getUniquePath())
-            self.filesAnalyzed += 1
-            self.log(Level.INFO, "Files analyzed: " + str(self.filesAnalyzed))
-            #progressBar.progress("Analyzing " + file.getName())
-            
-            #if self.local_settings.getSetting("exif") == "true":
-             #   self.filesAnalyzed += 1
              
             self.log(Level.INFO, "Platform used: " + PlatformUtil.getOSName())
             
@@ -250,29 +190,43 @@ class ImageMetadataFileIngestModuleWithUI(FileIngestModule):
             if "Mac" in PlatformUtil.getOSName():
                 PATH = PATH_MACOS
                 
+                # Metadata Error Test
+                #PATH = PATH_WINDOWS
+                
             elif "Windows" in PlatformUtil.getOSName():
                 PATH = PATH_WINDOWS
                     
                 
             # Analyze the image metadata
+            # If there is an error while analyzing the metadata, we will not run the module
             try:
+                
                 with ExifTool(PATH) as et:   
                     metadata = et.get_metadata(file.getLocalAbsPath())
                     #metadata = et.get_metadata(file.getUniquePath())
+                    
             except:
-                self.log(Level.WARNING, "Error reading metadata of current file " + file.getName())
+                
+                ImageAnalyzerLib.postInformationForTheUser(self, ImageMetadataFileIngestModuleWithUIFactory.moduleName,
+                                                           Level.SEVERE, IngestMessage.MessageType.ERROR, 
+                                                           "Error reading metadata of current file " + file.getName())
+
+                return IngestModule.ProcessResult.ERROR
+                
+                
+                
+            self.filesAnalyzed += 1
+            self.log(Level.INFO, "Files analyzed: " + str(self.filesAnalyzed))
     
+            
+            #============================== start of IMAGE METADATA ANALYSIS ==============================#
             
             # Use blackboard class to index blackboard artifacts for keyword search
             blackboard = Case.getCurrentCase().getServices().getBlackboard()
             
-            
-            
-            #============================== start of IMAGE METADATA ANALYSIS ==============================#
-            
             # If the Filter Mode checkbox is selected we will not add the analyzed images with its metadata in the artifact we have in the blackboard
             # Because if we only wanted to execute filters, we would have repited images (in the Image Metadata Analyzer artifact) every time we execute the module
-            if not self.local_settings.getSetting("filter") == "true":
+            if (not self.local_settings.getSetting("filter") == "true"):
             
                 # Creating a custom Artifact
                 artId = blackboard.getOrAddArtifactType("TSK_IMAGE_METADATA", "Image Metadata Analyzer") #Blackboard Artifact Type
@@ -284,93 +238,77 @@ class ImageMetadataFileIngestModuleWithUI(FileIngestModule):
                     # Check the GUI box "EXIF"
                     if (self.local_settings.getSetting("exif") == "true") and (list(metadata)[m].startswith("EXIF")):
                         
-                        # Check the value of the metadata: if it is not a string, convert it to string for a correct printing                    
-                        if type((list(metadata.values())[m])) is not str:
-                            metadata_att = str(list(metadata.values())[m])
-                        else:
-                            metadata_att = list(metadata.values())[m]
+                        # Check the value of the metadata: if it is not a string, convert it to string for a correct printing
+                        # metadata_att is the str of each attribute    
+                        metadata_att = ImageAnalyzerLib.metadataToString(list(metadata.values())[m])
                         
-                        # Add the new Attribute with the value of the metadata analyzed
-                        attId = blackboard.getOrAddAttributeType("TSK_" + list(metadata)[m], BlackboardAttribute.TSK_BLACKBOARD_ATTRIBUTE_VALUE_TYPE.STRING, list(metadata)[m])
-                        attribute = BlackboardAttribute(attId, ImageMetadataFileIngestModuleWithUIFactory.moduleName, metadata_att)
-                        
-                        # Adding the Attribute to the Artifact
-                        try:  
-                            artifact.addAttribute(attribute)
+                        # Add Attribute to the Artifact
+                        try:
+                            
+                            ImageAnalyzerLib.addNewMetadataAttribute(blackboard, artifact, artId, ImageMetadataFileIngestModuleWithUIFactory.moduleName,
+                                                                     list(metadata)[m], metadata_att)
                         except:
-                            self.log(Level.WARNING, "Error adding EXIF Attribute" + list(metadata)[m] + "to the Artifact!")
                             
-                    
-                            
+                            ImageAnalyzerLib.postInformationForTheUser(self, ImageMetadataFileIngestModuleWithUIFactory.moduleName,
+                                                                       Level.WARNING, IngestMessage.MessageType.ERROR, 
+                                                                       "Error adding EXIF Attribute " + list(metadata)[m] + " to the Artifact!")
+                                
                     # Check the GUI box "IPTC"
                     if (self.local_settings.getSetting("iptc") == "true") and (list(metadata)[m].startswith("IPTC")):
                         
-                        # Check the value of the metadata: if it is not a string, convert it to string for a correct printing                    
-                        if type((list(metadata.values())[m])) is not str:
-                            metadata_att = str(list(metadata.values())[m])
-                        else:
-                            metadata_att = list(metadata.values())[m]
+                        # Check the value of the metadata: if it is not a string, convert it to string for a correct printing 
+                        # metadata_att is the str of each attribute    
+                        metadata_att = ImageAnalyzerLib.metadataToString(list(metadata.values())[m])
                         
-                        # Add the new Attribute with the value of the metadata analyzed
-                        attId = blackboard.getOrAddAttributeType("TSK_" + list(metadata)[m], BlackboardAttribute.TSK_BLACKBOARD_ATTRIBUTE_VALUE_TYPE.STRING, list(metadata)[m])
-                        attribute = BlackboardAttribute(attId, ImageMetadataFileIngestModuleWithUIFactory.moduleName, metadata_att)
-                        
-                        # Adding the Attribute to the Artifact
-                        try:  
-                            artifact.addAttribute(attribute)
+                         # Add Attribute to the Artifact
+                        try:
+                            
+                            ImageAnalyzerLib.addNewMetadataAttribute(blackboard, artifact, artId, ImageMetadataFileIngestModuleWithUIFactory.moduleName,
+                                                                     list(metadata)[m], metadata_att)
                         except:
-                            self.log(Level.WARNING, "Error adding IPTC Attribute" + list(metadata)[m] + "to the Artifact!")
                             
-                            
+                            ImageAnalyzerLib.postInformationForTheUser(self, ImageMetadataFileIngestModuleWithUIFactory.moduleName,
+                                                                       Level.WARNING, IngestMessage.MessageType.ERROR, 
+                                                                       "Error adding IPTC Attribute " + list(metadata)[m] + " to the Artifact!")
+                                          
                     # Check the GUI box "XMP"
                     if (self.local_settings.getSetting("xmp") == "true") and (list(metadata)[m].startswith("XMP")):
+                       
+                        # Check the value of the metadata: if it is not a string, convert it to string for a correct printing 
+                        # metadata_att is the str of each attribute    
+                        metadata_att = ImageAnalyzerLib.metadataToString(list(metadata.values())[m])
                         
-                        # Check the value of the metadata: if it is not a string, convert it to string for a correct printing                    
-                        if type((list(metadata.values())[m])) is not str:
-                            metadata_att = str(list(metadata.values())[m])
-                        else:
-                            metadata_att = list(metadata.values())[m]
-                        
-                        # Add the new Attribute with the value of the metadata analyzed
-                        attId = blackboard.getOrAddAttributeType("TSK_" + list(metadata)[m], BlackboardAttribute.TSK_BLACKBOARD_ATTRIBUTE_VALUE_TYPE.STRING, list(metadata)[m])
-                        attribute = BlackboardAttribute(attId, ImageMetadataFileIngestModuleWithUIFactory.moduleName, metadata_att)
-                        
-                        # Adding the Attribute to the Artifact
-                        try:  
-                            artifact.addAttribute(attribute)
+                         # Add Attribute to the Artifact
+                        try:
+                            
+                            ImageAnalyzerLib.addNewMetadataAttribute(blackboard, artifact, artId, ImageMetadataFileIngestModuleWithUIFactory.moduleName,
+                                                                     list(metadata)[m], metadata_att)
                         except:
-                            self.log(Level.WARNING, "Error adding XMP Attribute" + list(metadata)[m] + "to the Artifact!")
-                    
+                            
+                            ImageAnalyzerLib.postInformationForTheUser(self, ImageMetadataFileIngestModuleWithUIFactory.moduleName,
+                                                                       Level.WARNING, IngestMessage.MessageType.ERROR, 
+                                                                       "Error adding XMP Attribute " + list(metadata)[m] + " to the Artifact!")
+                            
                     # Add other metadata information found such as "File:", "Composite:", etc.
                     if self.local_settings.getSetting("other") == "true" and not (list(metadata)[m].startswith("EXIF") or
                                                                                   list(metadata)[m].startswith("IPTC") or
                                                                                   list(metadata)[m].startswith("XMP")):
+                      
+                        # Check the value of the metadata: if it is not a string, convert it to string for a correct printing
+                        # metadata_att is the str of each attribute    
+                        metadata_att = ImageAnalyzerLib.metadataToString(list(metadata.values())[m])
                         
-                        # Check the value of the metadata: if it is not a string, convert it to string for a correct printing                    
-                        if type((list(metadata.values())[m])) is not str:
-                            metadata_att = str(list(metadata.values())[m])
-                        else:
-                            metadata_att = list(metadata.values())[m]
-                        
-                        # Add the new Attribute with the value of the metadata analyzed
-                        attId = blackboard.getOrAddAttributeType("TSK_" + list(metadata)[m], BlackboardAttribute.TSK_BLACKBOARD_ATTRIBUTE_VALUE_TYPE.STRING, list(metadata)[m])
-                        attribute = BlackboardAttribute(attId, ImageMetadataFileIngestModuleWithUIFactory.moduleName, metadata_att)
-                        
-                        # Adding the Attribute to the Artifact
-                        try:  
-                            artifact.addAttribute(attribute)
+                        # Add Attribute to the Artifact
+                        try:
+                            
+                            ImageAnalyzerLib.addNewMetadataAttribute(blackboard, artifact, artId, ImageMetadataFileIngestModuleWithUIFactory.moduleName,
+                                                                     list(metadata)[m], metadata_att)
                         except:
-                            self.log(Level.WARNING, "Error adding other Attribute" + list(metadata)[m] + "to the Artifact!")
+                            
+                            ImageAnalyzerLib.postInformationForTheUser(self, ImageMetadataFileIngestModuleWithUIFactory.moduleName,
+                                                                       Level.WARNING, IngestMessage.MessageType.ERROR, 
+                                                                       "Error adding Other Attribute " + list(metadata)[m] + " to the Artifact!")
                         
-                
-                #blackboard.postArtifact(artifact, ImageMetadataFileIngestModuleWithUIFactory.moduleName)
-                
-                blackboard.indexArtifact(artifact)
-                
-                # Fires an event to notify the UI and others that there is a new artifact
-                # So that the UI updates and refreshes with the new artifacts when the module is executed
-                IngestServices.getInstance().fireModuleDataEvent(ModuleDataEvent(ImageMetadataFileIngestModuleWithUIFactory.moduleName,
-                                                                                 artId, None))
                 
             #============================== end of IMAGE METADATA ANALYSIS ==============================#
             
@@ -394,16 +332,16 @@ class ImageMetadataFileIngestModuleWithUI(FileIngestModule):
             
             pattern_4 = "(not)\s[a-zA-Z0-9]+"
             
-            wordToSearch = self.local_settings.getSetting("word_search")
-            self.log(Level.INFO, "wordToSearch: " + wordToSearch)
+            self.wordToSearch = self.local_settings.getSetting("word_search")
+            self.log(Level.INFO, "wordToSearch: " + self.wordToSearch)
             
             artifact2 = file.newArtifact(BlackboardArtifact.ARTIFACT_TYPE.TSK_INTERESTING_FILE_HIT)
             
             # 2nd LEVEL: "AND". 
             #   - We can include as many "and" as we want: Canon and iPhone and Jordi and ...    
-            if (re.search(pattern_2, wordToSearch)):
+            if (re.search(pattern_2, self.wordToSearch)):
                 validation = 0
-                output = re.split("\sand\s", wordToSearch) # Output is a list containing the words to search
+                output = re.split("\sand\s", self.wordToSearch) # Output is a list containing the words to search
                 
                 for x in output:
                     
@@ -411,29 +349,28 @@ class ImageMetadataFileIngestModuleWithUI(FileIngestModule):
                         
                         # Check the value of the metadata: if it is not a string, convert it to string for a correct evaluation 
                         # metadata_att is the str of each attribute                   
-                        if type((list(metadata.values())[m])) is not str:
-                            metadata_att = str(list(metadata.values())[m])
-                        else:
-                            metadata_att = list(metadata.values())[m]
+                        metadata_att = ImageAnalyzerLib.metadataToString(list(metadata.values())[m])
                             
                         if x in metadata_att:
                             validation += 1
                             break
                         
-                    if validation == len(output):
-                        attribute2 = BlackboardAttribute(BlackboardAttribute.ATTRIBUTE_TYPE.TSK_SET_NAME.getTypeID(),
-                                                     ImageMetadataFileIngestModuleWithUIFactory.moduleName, wordToSearch)
-                        artifact2.addAttribute(attribute2)
-                        IngestServices.getInstance().fireModuleDataEvent(ModuleDataEvent(ImageMetadataFileIngestModuleWithUIFactory.moduleName,
-                                                                                         BlackboardArtifact.ARTIFACT_TYPE.TSK_INTERESTING_FILE_HIT, None))
-                        break
-                        
-                            
+                if validation == len(output):
+
+                    ImageAnalyzerLib.addInterestingFileHitAttribute(artifact2, ImageMetadataFileIngestModuleWithUIFactory.moduleName,
+                                                                    self.wordToSearch)
+                    
+                else:
+                    
+                    ImageAnalyzerLib.postInformationForTheUser(self, ImageMetadataFileIngestModuleWithUIFactory.moduleName,
+                                                               Level.INFO, IngestMessage.MessageType.WARNING, 
+                                                               '"' + self.wordToSearch + '" filter not found in the metadata of the image ' + '"' + file.getName() + '"')
+                    
             # 3rd LEVEL: "OR". 
             #   - We can include as many "or" as we want: Canon or iPhone or Jordi or ...          
-            elif (re.search(pattern_3, wordToSearch)):
+            elif (re.search(pattern_3, self.wordToSearch)):
                 validation = 0
-                output = re.split("\sor\s", wordToSearch) # Output is a list containing the words to search
+                output = re.split("\sor\s", self.wordToSearch) # Output is a list containing the words to search
                 
                 for x in output:
                     
@@ -441,75 +378,84 @@ class ImageMetadataFileIngestModuleWithUI(FileIngestModule):
                         
                         # Check the value of the metadata: if it is not a string, convert it to string for a correct evaluation 
                         # metadata_att is the str of each attribute                   
-                        if type((list(metadata.values())[m])) is not str:
-                            metadata_att = str(list(metadata.values())[m])
-                        else:
-                            metadata_att = list(metadata.values())[m]
+                        metadata_att = ImageAnalyzerLib.metadataToString(list(metadata.values())[m])
                                        
                         if x in metadata_att:
                             validation += 1
                             
-                    if validation > 0:
-                        attribute2 = BlackboardAttribute(BlackboardAttribute.ATTRIBUTE_TYPE.TSK_SET_NAME.getTypeID(),
-                                                     ImageMetadataFileIngestModuleWithUIFactory.moduleName, wordToSearch)
-                        artifact2.addAttribute(attribute2)
-                        IngestServices.getInstance().fireModuleDataEvent(ModuleDataEvent(ImageMetadataFileIngestModuleWithUIFactory.moduleName,
-                                                                                         BlackboardArtifact.ARTIFACT_TYPE.TSK_INTERESTING_FILE_HIT, None))
-                        break
+                if validation > 0:
+
+                    ImageAnalyzerLib.addInterestingFileHitAttribute(artifact2, ImageMetadataFileIngestModuleWithUIFactory.moduleName,
+                                                                    self.wordToSearch)
+                    
+                else:
+                    
+                    ImageAnalyzerLib.postInformationForTheUser(self, ImageMetadataFileIngestModuleWithUIFactory.moduleName,
+                                                               Level.INFO, IngestMessage.MessageType.WARNING, 
+                                                               '"' + self.wordToSearch + '" filter not found in the metadata of the image ' + '"' + file.getName() + '"')
                                   
             # 4th LEVEL: "NOT". 
             #   - We can only include one "not"
-            elif (re.search(pattern_4, wordToSearch)):
+            elif (re.search(pattern_4, self.wordToSearch)):
                 validation = 0
-                output = re.sub("not\s", "", wordToSearch) # Output is a list containing the words to search
+                output = re.sub("not\s", "", self.wordToSearch) # Output is a list containing the words to search
                     
                 for m in range(0, len(metadata)):
                     
                     # Check the value of the metadata: if it is not a string, convert it to string for a correct evaluation 
                     # metadata_att is the str of each attribute                   
-                    if type((list(metadata.values())[m])) is not str:
-                        metadata_att = str(list(metadata.values())[m])
-                    else:
-                        metadata_att = list(metadata.values())[m]
+                    metadata_att = ImageAnalyzerLib.metadataToString(list(metadata.values())[m])
                                    
                     if output in metadata_att:
                         validation += 1
                         
                 if validation == 0:
-                    attribute2 = BlackboardAttribute(BlackboardAttribute.ATTRIBUTE_TYPE.TSK_SET_NAME.getTypeID(),
-                                                 ImageMetadataFileIngestModuleWithUIFactory.moduleName, wordToSearch)
-                    artifact2.addAttribute(attribute2)
-                    IngestServices.getInstance().fireModuleDataEvent(ModuleDataEvent(ImageMetadataFileIngestModuleWithUIFactory.moduleName,
-                                                                                     BlackboardArtifact.ARTIFACT_TYPE.TSK_INTERESTING_FILE_HIT, None))
-                
+
+                    ImageAnalyzerLib.addInterestingFileHitAttribute(artifact2, ImageMetadataFileIngestModuleWithUIFactory.moduleName,
+                                                                    self.wordToSearch)
+                    
+                else:
+                    
+                    ImageAnalyzerLib.postInformationForTheUser(self, ImageMetadataFileIngestModuleWithUIFactory.moduleName,
+                                                               Level.INFO, IngestMessage.MessageType.WARNING, 
+                                                               '"' + self.wordToSearch + '" filter not found in the metadata of the image ' + '"' + file.getName() + '"')
+                    
             # 1st LEVEL: One word. 
             #   - We can only include one word to search
-            elif (re.search(pattern_1, wordToSearch)):
+            elif (re.search(pattern_1, self.wordToSearch)):
                 validation = 0
-                output = wordToSearch
+                output = self.wordToSearch
                     
                 for m in range(0, len(metadata)):
                     
                     # Check the value of the metadata: if it is not a string, convert it to string for a correct evaluation 
                     # metadata_att is the str of each attribute                   
-                    if type((list(metadata.values())[m])) is not str:
-                        metadata_att = str(list(metadata.values())[m])
-                    else:
-                        metadata_att = list(metadata.values())[m]
+                    metadata_att = ImageAnalyzerLib.metadataToString(list(metadata.values())[m])
                                    
                     if output in metadata_att:
-                        attribute2 = BlackboardAttribute(BlackboardAttribute.ATTRIBUTE_TYPE.TSK_SET_NAME.getTypeID(),
-                                                 ImageMetadataFileIngestModuleWithUIFactory.moduleName, wordToSearch)
-                        artifact2.addAttribute(attribute2)
-                        IngestServices.getInstance().fireModuleDataEvent(ModuleDataEvent(ImageMetadataFileIngestModuleWithUIFactory.moduleName,
-                                                                                         BlackboardArtifact.ARTIFACT_TYPE.TSK_INTERESTING_FILE_HIT, None))
-                        break
+                        validation += 1
+                    
+                if validation > 0:
+
+                    ImageAnalyzerLib.addInterestingFileHitAttribute(artifact2, ImageMetadataFileIngestModuleWithUIFactory.moduleName,
+                                                                    self.wordToSearch)
+                    
+                else:
+                    
+                    ImageAnalyzerLib.postInformationForTheUser(self, ImageMetadataFileIngestModuleWithUIFactory.moduleName,
+                                                               Level.INFO, IngestMessage.MessageType.WARNING, 
+                                                               '"' + self.wordToSearch + '" filter not found in the metadata of the image ' + '"' + file.getName() + '"')
+                    
+            elif (self.wordToSearch == ""):
+                self.log(Level.INFO, "You have not entered any filter")
+                
                     
             else:
                 
-                self.log(Level.WARNING, "Incorrect filter's input!")
+                ImageAnalyzerLib.postInformationForTheUser(self, ImageMetadataFileIngestModuleWithUIFactory.moduleName,
+                                                           Level.WARNING, IngestMessage.MessageType.ERROR, "Incorrect filter's input!")
                 
-            
+                
             
             #============================== end of IMAGE METADATA FILTERING ==============================#
             
@@ -521,9 +467,19 @@ class ImageMetadataFileIngestModuleWithUI(FileIngestModule):
     def shutDown(self):
         # As a final part, we'll send a message to the ingest inbox with the number of files found (in this thread)
         message = IngestMessage.createMessage(
-            IngestMessage.MessageType.DATA, ImageMetadataFileIngestModuleWithUIFactory.moduleName,
+            IngestMessage.MessageType.INFO, ImageMetadataFileIngestModuleWithUIFactory.moduleName,
                 str(self.filesAnalyzed) + " files analyzed")
         ingestServices = IngestServices.getInstance().postMessage(message)
+        
+        """
+        if (self.wordToSearch == ""):
+            message = IngestMessage.createMessage(
+                    IngestMessage.MessageType.INFO, ImageMetadataFileIngestModuleWithUIFactory.moduleName, "You have not entered any filter")
+                
+            ingestServices = IngestServices.getInstance().postMessage(message)
+        """
+       
+        pass
         
 
 
