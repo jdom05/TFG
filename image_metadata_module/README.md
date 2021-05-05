@@ -10,11 +10,16 @@ Make sure to install `exiftool` in the proper *PATH*:
 - **MacOS**: `/usr/local/bin/exiftool`
 
 ## Image Metadata Filter
-- 1st level: one word filter (ex: Canon)
-- 2nd level: 'and' filter (ex: Canon and Jordi)
-- 3rd level: 'or' filter (ex: iPhone or Canon)
-- 4th level: 'not' filter (ex: not iPhone)
-- **TO DO** 5th level: 'and', 'or' and 'not' combined filter
+### Different levels:
+- 1st level => basic one condition filter
+- 2nd level => "AND" filter ("" + AND + "")
+- 3rd level => "OR" filter ("" + OR + "")
+- 4th level => "NOT" filter (NOT + "")
+- 5th level => filter by specific metadata attribute (Author == Jordi)
+- 6th level => filter by specific metadata attribute (Author != Jordi)
+- 7th level => filter by specific metadata attribute (Author CONTAIN Jordi)
+- 8th level => filter by specific metadata attribute (Author DOES NOT CONTAIN Jordi)
+- TODO: 9th level => "AND", "OR", "NOT" mixed filter
 
  
 
