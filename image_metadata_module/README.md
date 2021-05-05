@@ -11,16 +11,14 @@ Make sure to install `exiftool` in the proper *PATH*:
 
 ## Image Metadata Filter
 ### Different levels:
-- 1st level => basic one condition filter
-- 2nd level => "AND" filter ("" + AND + "")
-- 3rd level => "OR" filter ("" + OR + "")
-- 4th level => "NOT" filter (NOT + "")
-- 5th level => filter by specific metadata attribute (Author == Jordi)
-- 6th level => filter by specific metadata attribute (Author != Jordi)
-- 7th level => filter by specific metadata attribute (Author CONTAIN Jordi)
-- 8th level => filter by specific metadata attribute (Author DOES NOT CONTAIN Jordi)
-- TODO: 9th level => "AND", "OR", "NOT" mixed filter
-
+- 1st level => basic one condition filter (ex: iPhone)
+- 2nd level => `AND` filter (ex: Canon `AND` Jordi)
+- 3rd level => `OR` filter (ex: iPhone `OR` Canon)
+- 4th level => `NOT` filter (ex: `NOT` Canon)
+- 5th level => filter `==` by specific metadata tag and value (ex: Author `==` Jordi)
+- 6th level => filter `!=` by specific metadata tag and value (ex: Author `!=` Jordi)
+- 7th level => filter `CONTAINS` by specific metadata tag (ex: Author `CONTAINS` Jordi)
+- 8th level => filter `DOES NOT CONTAIN` by specific metadata tag (ex: Author `DOES NOT CONTAIN` Jordi)
  
 
 
