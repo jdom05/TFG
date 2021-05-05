@@ -201,8 +201,12 @@ class ImageMetadataFileIngestModuleWithUI(FileIngestModule):
             # If there is an error while analyzing the metadata, we will not run the module
             try:
                 
-                with ExifTool(PATH) as et:   
+                with ExifTool(PATH) as et:  
+                    # metadata is a dictionary (key:value pair) 
+                    # key => metadata type (tag)
+                    # value => metadata value (value of the tag)
                     metadata = et.get_metadata(file.getLocalAbsPath())
+                    
                     #metadata = et.get_metadata(file.getUniquePath())
                     
             except:
@@ -213,11 +217,18 @@ class ImageMetadataFileIngestModuleWithUI(FileIngestModule):
 
                 return IngestModule.ProcessResult.ERROR
                 
-                
-                
+            
+            # A list with the tags of all the metadata found in the image
+            imageMetadataTagList = list(metadata)
+            
+            # A list with the values of all the metadata found in the image
+            imageMetadataValueList = list(metadata.values())
+            
+            
             self.filesAnalyzed += 1
+            
             self.log(Level.INFO, "Files analyzed: " + str(self.filesAnalyzed))
-    
+            
             
             #============================== start of IMAGE METADATA ANALYSIS ==============================#
             
@@ -236,78 +247,78 @@ class ImageMetadataFileIngestModuleWithUI(FileIngestModule):
                 for m in range(0, len(metadata)):
                     
                     # Check the GUI box "EXIF"
-                    if (self.local_settings.getSetting("exif") == "true") and (list(metadata)[m].startswith("EXIF")):
+                    if (self.local_settings.getSetting("exif") == "true") and (imageMetadataTagList[m].startswith("EXIF")):
                         
                         # Check the value of the metadata: if it is not a string, convert it to string for a correct printing
-                        # metadata_att is the str of each attribute    
-                        metadata_att = ImageAnalyzerLib.metadataToString(list(metadata.values())[m])
+                        # metadataValue is the str of each metadata value    
+                        metadataValue = ImageAnalyzerLib.metadataToString(imageMetadataValueList[m])
                         
                         # Add Attribute to the Artifact
                         try:
                             
                             ImageAnalyzerLib.addNewMetadataAttribute(blackboard, artifact, artId, ImageMetadataFileIngestModuleWithUIFactory.moduleName,
-                                                                     list(metadata)[m], metadata_att)
+                                                                     imageMetadataTagList[m], metadataValue)
                         except:
                             
                             ImageAnalyzerLib.postInformationForTheUser(self, ImageMetadataFileIngestModuleWithUIFactory.moduleName,
                                                                        Level.WARNING, IngestMessage.MessageType.ERROR, 
-                                                                       "Error adding EXIF Attribute " + list(metadata)[m] + " to the Artifact!")
+                                                                       "Error adding EXIF Attribute " + imageMetadataTagList[m] + " to the Artifact!")
                                 
                     # Check the GUI box "IPTC"
-                    if (self.local_settings.getSetting("iptc") == "true") and (list(metadata)[m].startswith("IPTC")):
+                    if (self.local_settings.getSetting("iptc") == "true") and (imageMetadataTagList[m].startswith("IPTC")):
                         
                         # Check the value of the metadata: if it is not a string, convert it to string for a correct printing 
-                        # metadata_att is the str of each attribute    
-                        metadata_att = ImageAnalyzerLib.metadataToString(list(metadata.values())[m])
+                        # metadataValue is the str of each metadata value    
+                        metadataValue = ImageAnalyzerLib.metadataToString(imageMetadataValueList[m])
                         
                          # Add Attribute to the Artifact
                         try:
                             
                             ImageAnalyzerLib.addNewMetadataAttribute(blackboard, artifact, artId, ImageMetadataFileIngestModuleWithUIFactory.moduleName,
-                                                                     list(metadata)[m], metadata_att)
+                                                                     imageMetadataTagList[m], metadataValue)
                         except:
                             
                             ImageAnalyzerLib.postInformationForTheUser(self, ImageMetadataFileIngestModuleWithUIFactory.moduleName,
                                                                        Level.WARNING, IngestMessage.MessageType.ERROR, 
-                                                                       "Error adding IPTC Attribute " + list(metadata)[m] + " to the Artifact!")
+                                                                       "Error adding IPTC Attribute " + imageMetadataTagList[m] + " to the Artifact!")
                                           
                     # Check the GUI box "XMP"
-                    if (self.local_settings.getSetting("xmp") == "true") and (list(metadata)[m].startswith("XMP")):
+                    if (self.local_settings.getSetting("xmp") == "true") and (imageMetadataTagList[m].startswith("XMP")):
                        
                         # Check the value of the metadata: if it is not a string, convert it to string for a correct printing 
-                        # metadata_att is the str of each attribute    
-                        metadata_att = ImageAnalyzerLib.metadataToString(list(metadata.values())[m])
+                        # metadataValue is the str of each metadata value    
+                        metadataValue = ImageAnalyzerLib.metadataToString(imageMetadataValueList[m])
                         
                          # Add Attribute to the Artifact
                         try:
                             
                             ImageAnalyzerLib.addNewMetadataAttribute(blackboard, artifact, artId, ImageMetadataFileIngestModuleWithUIFactory.moduleName,
-                                                                     list(metadata)[m], metadata_att)
+                                                                     imageMetadataTagList[m], metadataValue)
                         except:
                             
                             ImageAnalyzerLib.postInformationForTheUser(self, ImageMetadataFileIngestModuleWithUIFactory.moduleName,
                                                                        Level.WARNING, IngestMessage.MessageType.ERROR, 
-                                                                       "Error adding XMP Attribute " + list(metadata)[m] + " to the Artifact!")
+                                                                       "Error adding XMP Attribute " + imageMetadataTagList[m] + " to the Artifact!")
                             
                     # Add other metadata information found such as "File:", "Composite:", etc.
-                    if self.local_settings.getSetting("other") == "true" and not (list(metadata)[m].startswith("EXIF") or
-                                                                                  list(metadata)[m].startswith("IPTC") or
-                                                                                  list(metadata)[m].startswith("XMP")):
+                    if self.local_settings.getSetting("other") == "true" and not (imageMetadataTagList[m].startswith("EXIF") or
+                                                                                  imageMetadataTagList[m].startswith("IPTC") or
+                                                                                  imageMetadataTagList[m].startswith("XMP")):
                       
                         # Check the value of the metadata: if it is not a string, convert it to string for a correct printing
-                        # metadata_att is the str of each attribute    
-                        metadata_att = ImageAnalyzerLib.metadataToString(list(metadata.values())[m])
+                        # metadataValue is the str of each metadata value    
+                        metadataValue = ImageAnalyzerLib.metadataToString(imageMetadataValueList[m])
                         
                         # Add Attribute to the Artifact
                         try:
                             
                             ImageAnalyzerLib.addNewMetadataAttribute(blackboard, artifact, artId, ImageMetadataFileIngestModuleWithUIFactory.moduleName,
-                                                                     list(metadata)[m], metadata_att)
+                                                                     imageMetadataTagList[m], metadataValue)
                         except:
                             
                             ImageAnalyzerLib.postInformationForTheUser(self, ImageMetadataFileIngestModuleWithUIFactory.moduleName,
                                                                        Level.WARNING, IngestMessage.MessageType.ERROR, 
-                                                                       "Error adding Other Attribute " + list(metadata)[m] + " to the Artifact!")
+                                                                       "Error adding Other Attribute " + imageMetadataTagList[m] + " to the Artifact!")
                         
                 
             #============================== end of IMAGE METADATA ANALYSIS ==============================#
@@ -317,134 +328,405 @@ class ImageMetadataFileIngestModuleWithUI(FileIngestModule):
             
             # Different levels:
             #   - 1st level => basic one condition filter
-            #   - 2nd level => "AND" filter ("" + and + "")
-            #   - 3rd level => "OR" filter ("" + or + "")
-            #   - 4th level => "NOT" filter (not + "")
-            #   - TO DO: 5th level => "AND", "OR", "NOT" mixed filter
+            #   - 2nd level => "AND" filter ("" + AND + "")
+            #   - 3rd level => "OR" filter ("" + OR + "")
+            #   - 4th level => "NOT" filter (NOT + "")
+            #   - 5th level => filter by specific metadata attribute (Author == Jordi)
+            #   - 6th level => filter by specific metadata attribute (Author != Jordi)
+            #   - 7th level => filter by specific metadata attribute (Author CONTAIN Jordi)
+            #   - 8th level => filter by specific metadata attribute (Author DOES NOT CONTAIN Jordi)
+            # TODO: - 9th level => "AND", "OR", "NOT" mixed filter
             
             validation = 0
             
-            pattern_1 = "[a-zA-Z0-9]+"
+            pattern_1 = "[a-zA-Z0-9]"
 
-            pattern_2 = "[a-zA-Z0-9]+\s(and)\s[a-zA-Z0-9]+"
+            pattern_2 = "[a-zA-Z0-9]\s(AND)\s[a-zA-Z0-9]"
             
-            pattern_3 = "[a-zA-Z0-9]+\s(or)\s[a-zA-Z0-9]+"
+            pattern_3 = "[a-zA-Z0-9]\s(OR)\s[a-zA-Z0-9]"
             
-            pattern_4 = "(not)\s[a-zA-Z0-9]+"
+            pattern_4 = "(NOT)\s[a-zA-Z0-9]"
+            
+            pattern_5 = "[a-zA-Z0-9]\s(==)\s[a-zA-Z0-9]"
+            
+            pattern_6 = "[a-zA-Z0-9]\s(!=)\s[a-zA-Z0-9]"
+            
+            pattern_7 = "[a-zA-Z0-9]\s(CONTAINS)\s[a-zA-Z0-9]"
+            
+            pattern_8 = "[a-zA-Z0-9]\s(DOES\sNOT\sCONTAIN)\s[a-zA-Z0-9]"
             
             self.wordToSearch = self.local_settings.getSetting("word_search")
             self.log(Level.INFO, "wordToSearch: " + self.wordToSearch)
             
-            artifact2 = file.newArtifact(BlackboardArtifact.ARTIFACT_TYPE.TSK_INTERESTING_FILE_HIT)
+            interestingFileHitArtifact = file.newArtifact(BlackboardArtifact.ARTIFACT_TYPE.TSK_INTERESTING_FILE_HIT)
+            
+            
+            # 5th LEVEL: "=="
+            if (re.search(pattern_5, self.wordToSearch)):
+                validation = 0
+                
+                # output[0] = tag of the metadata
+                # output[1] = corresponding value of the metadata
+                output = re.split("\s==\s", self.wordToSearch)
+                
+                for m in range(0, len(metadata)):
+                    
+                    metadataValue = ImageAnalyzerLib.metadataToString(imageMetadataValueList[m])
+                    
+                    metadataTagPairs = re.split(":", imageMetadataTagList[m])
+        
+                    # There is usually an error with the first metadata because does not cotain the ':', 
+                    # and for that reason there is only 1 name in the list and not 2
+                    try:
+                        metadataTag = metadataTagPairs[1]
+                    except:
+                        metadataTag = metadataTagPairs[0] 
+                    
+                    # If the tag is the same as introduced and it is the same name as the metadata value introduced, the filter is found
+                    if metadataTag == output[0] and metadataValue == output[1]:
+                        validation += 1
+                        metadataEntireTag = imageMetadataTagList[m]
+                        break
+                
+                # If it is true, the "==" condition has been accomplished
+                if validation == 1:
+
+                    metadataTagValue = metadataEntireTag + "=>" + metadataValue 
+                    
+                    # Dictionary (key:value) with the attribute name (key) and its type (value)
+                    attributesDict = {
+                        self.wordToSearch: BlackboardAttribute.ATTRIBUTE_TYPE.TSK_SET_NAME,
+                        metadataTagValue: BlackboardAttribute.ATTRIBUTE_TYPE.TSK_COMMENT
+                        }
+                    
+                    ImageAnalyzerLib.addInterestingFileHitAttributes(interestingFileHitArtifact,
+                                                                     ImageMetadataFileIngestModuleWithUIFactory.moduleName,
+                                                                     attributesDict)
+                    
+                    
+                else:
+                    
+                    ImageAnalyzerLib.postInformationForTheUser(self, ImageMetadataFileIngestModuleWithUIFactory.moduleName,
+                                                               Level.INFO, IngestMessage.MessageType.WARNING, 
+                                                               '"' + self.wordToSearch + '" filter not found in the metadata of ' + '"' + file.getName() + '"')
+                
+            # 6th LEVEL: "!="
+            elif (re.search(pattern_6, self.wordToSearch)):
+                validation = 0
+                
+                # output[0] = tag of the metadata
+                # output[1] = corresponding value of the metadata
+                output = re.split("\s!=\s", self.wordToSearch)
+                
+                for m in range(0, len(metadata)):
+                    
+                    metadataValue = ImageAnalyzerLib.metadataToString(imageMetadataValueList[m])
+                    
+                    metadataTagPairs = re.split(":", imageMetadataTagList[m])
+        
+                    # There is usually an error with the first metadata because does not cotain the ':', 
+                    # and for that reason there is only 1 name in the list and not 2
+                    try:
+                        metadataTag = metadataTagPairs[1]
+                    except:
+                        metadataTag = metadataTagPairs[0] 
+                    
+                    # If the tag is the same as introduced and it is NOT the same name as the metadata value introduced, the filter is found
+                    if metadataTag == output[0] and metadataValue != output[1]:
+                        validation += 1
+                        metadataEntireTag = imageMetadataTagList[m]
+                        break
+                
+                # If it is true, the "!=" condition has been accomplished
+                if validation == 1:
+                    
+                    metadataTagValue = metadataEntireTag + "=>" + metadataValue 
+                    
+                    # Dictionary (key:value) with the attribute name (key) and its type (value)
+                    attributesDict = {
+                        self.wordToSearch: BlackboardAttribute.ATTRIBUTE_TYPE.TSK_SET_NAME,
+                        metadataTagValue: BlackboardAttribute.ATTRIBUTE_TYPE.TSK_COMMENT
+                        }
+                    
+                    ImageAnalyzerLib.addInterestingFileHitAttributes(interestingFileHitArtifact,
+                                                                     ImageMetadataFileIngestModuleWithUIFactory.moduleName,
+                                                                     attributesDict)
+                    
+                    
+                else:
+                    
+                    ImageAnalyzerLib.postInformationForTheUser(self, ImageMetadataFileIngestModuleWithUIFactory.moduleName,
+                                                               Level.INFO, IngestMessage.MessageType.WARNING, 
+                                                               '"' + self.wordToSearch + '" filter not found in the metadata of ' + '"' + file.getName() + '"')
+       
+            # 7th LEVEL: "CONTAINS"
+            elif (re.search(pattern_7, self.wordToSearch)):
+                validation = 0
+                
+                # output[0] = tag of the metadata
+                # output[1] = corresponding value of the metadata
+                output = re.split("\sCONTAINS\s", self.wordToSearch)
+                
+                for m in range(0, len(metadata)):
+                    
+                    metadataValue = ImageAnalyzerLib.metadataToString(imageMetadataValueList[m])
+                    
+                    metadataTagPairs = re.split(":", imageMetadataTagList[m])
+        
+                    # There is usually an error with the first metadata because does not cotain the ':', 
+                    # and for that reason there is only 1 name in the list and not 2
+                    try:
+                        metadataTag = metadataTagPairs[1]
+                    except:
+                        metadataTag = metadataTagPairs[0] 
+                    
+                    # If the tag is the same as introduced and it CONTAINS the metadata value introduced, the filter is found
+                    # Here is the difference between '==' and 'CONTAINS' => output[1] in metadataValue
+                    if (metadataTag == output[0]) and (output[1] in metadataValue):
+                        validation += 1
+                        metadataEntireTag = imageMetadataTagList[m]
+                        break
+                
+                # If it is true, the "CONTAINS" condition has been accomplished
+                if validation == 1:
+                    
+                    metadataTagValue = metadataEntireTag + "=>" + metadataValue 
+                    
+                    # Dictionary (key:value) with the attribute name (key) and its type (value)
+                    attributesDict = {
+                        self.wordToSearch: BlackboardAttribute.ATTRIBUTE_TYPE.TSK_SET_NAME,
+                        metadataTagValue: BlackboardAttribute.ATTRIBUTE_TYPE.TSK_COMMENT
+                        }
+                    
+                    ImageAnalyzerLib.addInterestingFileHitAttributes(interestingFileHitArtifact,
+                                                                     ImageMetadataFileIngestModuleWithUIFactory.moduleName,
+                                                                     attributesDict)
+                    
+                    
+                else:
+                    
+                    ImageAnalyzerLib.postInformationForTheUser(self, ImageMetadataFileIngestModuleWithUIFactory.moduleName,
+                                                               Level.INFO, IngestMessage.MessageType.WARNING, 
+                                                               '"' + self.wordToSearch + '" filter not found in the metadata of ' + '"' + file.getName() + '"')
+            
+            # 8th LEVEL: "DOES NOT CONTAIN"
+            elif (re.search(pattern_8, self.wordToSearch)):
+                validation = 0
+                
+                # output[0] = tag of the metadata
+                # output[1] = corresponding value of the metadata
+                output = re.split("\sDOES\sNOT\sCONTAIN\s", self.wordToSearch)
+                
+                for m in range(0, len(metadata)):
+                    
+                    metadataValue = ImageAnalyzerLib.metadataToString(imageMetadataValueList[m])
+                    
+                    metadataTagPairs = re.split(":", imageMetadataTagList[m])
+        
+                    # There is usually an error with the first metadata because does not cotain the ':', 
+                    # and for that reason there is only 1 name in the list and not 2
+                    try:
+                        metadataTag = metadataTagPairs[1]
+                    except:
+                        metadataTag = metadataTagPairs[0] 
+                    
+                    # If the tag is the same as introduced and it DOES NOT CONTAIN the metadata value introduced, the filter is found
+                    # Here is the difference between '!=' and 'DOES NOT CONTAIN' => output[1] not in metadataValue
+                    if (metadataTag == output[0]) and (output[1] not in metadataValue):
+                        validation += 1
+                        metadataEntireTag = imageMetadataTagList[m]
+                        break
+                
+                # If it is true, the "DOES NOT CONTAIN" condition has been accomplished
+                if validation == 1:
+                    
+                    metadataTagValue = metadataEntireTag + "=>" + metadataValue 
+                    
+                    # Dictionary (key:value) with the attribute name (key) and its type (value)
+                    attributesDict = {
+                        self.wordToSearch: BlackboardAttribute.ATTRIBUTE_TYPE.TSK_SET_NAME,
+                        metadataTagValue: BlackboardAttribute.ATTRIBUTE_TYPE.TSK_COMMENT
+                        }
+                    
+                    ImageAnalyzerLib.addInterestingFileHitAttributes(interestingFileHitArtifact,
+                                                                     ImageMetadataFileIngestModuleWithUIFactory.moduleName,
+                                                                     attributesDict)
+                    
+                else:
+                    
+                    ImageAnalyzerLib.postInformationForTheUser(self, ImageMetadataFileIngestModuleWithUIFactory.moduleName,
+                                                               Level.INFO, IngestMessage.MessageType.WARNING, 
+                                                               '"' + self.wordToSearch + '" filter not found in the metadata of ' + '"' + file.getName() + '"')
             
             # 2nd LEVEL: "AND". 
-            #   - We can include as many "and" as we want: Canon and iPhone and Jordi and ...    
-            if (re.search(pattern_2, self.wordToSearch)):
+            #   - We can include as many "AND" as we want: Canon AND iPhone AND Jordi AND ...    
+            elif (re.search(pattern_2, self.wordToSearch)):
+                metadataTagValueList = []
                 validation = 0
-                output = re.split("\sand\s", self.wordToSearch) # Output is a list containing the words to search
+                output = re.split("\sAND\s", self.wordToSearch) # Output is a list containing the words to search
                 
                 for x in output:
                     
                     for m in range(0, len(metadata)):
                         
                         # Check the value of the metadata: if it is not a string, convert it to string for a correct evaluation 
-                        # metadata_att is the str of each attribute                   
-                        metadata_att = ImageAnalyzerLib.metadataToString(list(metadata.values())[m])
+                        # metadataValue is the str of each metadata value                   
+                        metadataValue = ImageAnalyzerLib.metadataToString(imageMetadataValueList[m])
                             
-                        if x in metadata_att:
+                        if x in metadataValue:
                             validation += 1
                             break
-                        
+                
+                # If it is true, the "AND" condition has been accomplished        
                 if validation == len(output):
-
-                    ImageAnalyzerLib.addInterestingFileHitAttribute(artifact2, ImageMetadataFileIngestModuleWithUIFactory.moduleName,
-                                                                    self.wordToSearch)
+                    
+                    # Adding the comments, that is the tags where the metadata values have been found
+                    for x in output:
+                        for m in range(0, len(metadata)):
+                            
+                            metadataValue = ImageAnalyzerLib.metadataToString(imageMetadataValueList[m])
+                            
+                            if x in metadataValue:
+                                metadataTagValue = imageMetadataTagList[m] + "=>" + metadataValue
+                                metadataTagValueList.append(metadataTagValue)
+                
+                    
+                    # Dictionary (key:value) with the attribute name (key) and its type (value)
+                    attributesDict = {
+                        self.wordToSearch: BlackboardAttribute.ATTRIBUTE_TYPE.TSK_SET_NAME,
+                        ' | \n'.join(metadataTagValueList): BlackboardAttribute.ATTRIBUTE_TYPE.TSK_COMMENT
+                        }
+                    
+                    ImageAnalyzerLib.addInterestingFileHitAttributes(interestingFileHitArtifact,
+                                                                     ImageMetadataFileIngestModuleWithUIFactory.moduleName,
+                                                                     attributesDict)
                     
                 else:
                     
                     ImageAnalyzerLib.postInformationForTheUser(self, ImageMetadataFileIngestModuleWithUIFactory.moduleName,
                                                                Level.INFO, IngestMessage.MessageType.WARNING, 
-                                                               '"' + self.wordToSearch + '" filter not found in the metadata of the image ' + '"' + file.getName() + '"')
+                                                               '"' + self.wordToSearch + '" filter not found in the metadata of ' + '"' + file.getName() + '"')
                     
             # 3rd LEVEL: "OR". 
-            #   - We can include as many "or" as we want: Canon or iPhone or Jordi or ...          
+            #   - We can include as many "OR" as we want: Canon OR iPhone OR Jordi OR ...
             elif (re.search(pattern_3, self.wordToSearch)):
+                metadataTagValueList = []
                 validation = 0
-                output = re.split("\sor\s", self.wordToSearch) # Output is a list containing the words to search
+                output = re.split("\sOR\s", self.wordToSearch) # Output is a list containing the words to search
                 
                 for x in output:
                     
                     for m in range(0, len(metadata)):
                         
                         # Check the value of the metadata: if it is not a string, convert it to string for a correct evaluation 
-                        # metadata_att is the str of each attribute                   
-                        metadata_att = ImageAnalyzerLib.metadataToString(list(metadata.values())[m])
+                        # metadataValue is the str of each metadata value                   
+                        metadataValue = ImageAnalyzerLib.metadataToString(imageMetadataValueList[m])
                                        
-                        if x in metadata_att:
+                        if x in metadataValue:
                             validation += 1
-                            
+                
+                # If it is true, the "OR" condition has been accomplished
                 if validation > 0:
+                    
+                    # Adding the comments, that is the tags where the metadata values have been found
+                    for x in output:
+                        for m in range(0, len(metadata)):
+                            
+                            metadataValue = ImageAnalyzerLib.metadataToString(imageMetadataValueList[m])
+                            
+                            if x in metadataValue:
+                                metadataTagValue = imageMetadataTagList[m] + "=>" + metadataValue
+                                metadataTagValueList.append(metadataTagValue)
 
-                    ImageAnalyzerLib.addInterestingFileHitAttribute(artifact2, ImageMetadataFileIngestModuleWithUIFactory.moduleName,
-                                                                    self.wordToSearch)
+                    
+                    # Dictionary (key:value) with the attribute name (key) and its type (value)
+                    attributesDict = {
+                        self.wordToSearch: BlackboardAttribute.ATTRIBUTE_TYPE.TSK_SET_NAME,
+                        ' | \n'.join(metadataTagValueList): BlackboardAttribute.ATTRIBUTE_TYPE.TSK_COMMENT
+                        }
+                    
+                    ImageAnalyzerLib.addInterestingFileHitAttributes(interestingFileHitArtifact,
+                                                                     ImageMetadataFileIngestModuleWithUIFactory.moduleName,
+                                                                     attributesDict)
                     
                 else:
                     
                     ImageAnalyzerLib.postInformationForTheUser(self, ImageMetadataFileIngestModuleWithUIFactory.moduleName,
                                                                Level.INFO, IngestMessage.MessageType.WARNING, 
-                                                               '"' + self.wordToSearch + '" filter not found in the metadata of the image ' + '"' + file.getName() + '"')
+                                                               '"' + self.wordToSearch + '" filter not found in the metadata of ' + '"' + file.getName() + '"')
                                   
             # 4th LEVEL: "NOT". 
             #   - We can only include one "not"
             elif (re.search(pattern_4, self.wordToSearch)):
                 validation = 0
-                output = re.sub("not\s", "", self.wordToSearch) # Output is a list containing the words to search
+                output = re.sub("NOT\s", "", self.wordToSearch) # Output is a list containing the words to search
                     
                 for m in range(0, len(metadata)):
                     
                     # Check the value of the metadata: if it is not a string, convert it to string for a correct evaluation 
-                    # metadata_att is the str of each attribute                   
-                    metadata_att = ImageAnalyzerLib.metadataToString(list(metadata.values())[m])
+                    # metadataValue is the str of each metadata value                   
+                    metadataValue = ImageAnalyzerLib.metadataToString(imageMetadataValueList[m])
                                    
-                    if output in metadata_att:
+                    if output in metadataValue:
                         validation += 1
-                        
+                
+                # If it is true, the "NOT" condition has been accomplished
                 if validation == 0:
-
-                    ImageAnalyzerLib.addInterestingFileHitAttribute(artifact2, ImageMetadataFileIngestModuleWithUIFactory.moduleName,
-                                                                    self.wordToSearch)
+                    
+                    # Dictionary (key:value) with the attribute name (key) and its type (value)
+                    attributesDict = {
+                        self.wordToSearch: BlackboardAttribute.ATTRIBUTE_TYPE.TSK_SET_NAME,
+                        ("The metadata of the image does NOT contain the word searched: " + output): BlackboardAttribute.ATTRIBUTE_TYPE.TSK_COMMENT
+                        }
+                    
+                    ImageAnalyzerLib.addInterestingFileHitAttributes(interestingFileHitArtifact,
+                                                                     ImageMetadataFileIngestModuleWithUIFactory.moduleName,
+                                                                     attributesDict)
                     
                 else:
                     
                     ImageAnalyzerLib.postInformationForTheUser(self, ImageMetadataFileIngestModuleWithUIFactory.moduleName,
                                                                Level.INFO, IngestMessage.MessageType.WARNING, 
-                                                               '"' + self.wordToSearch + '" filter not found in the metadata of the image ' + '"' + file.getName() + '"')
+                                                               '"' + self.wordToSearch + '" filter not found in the metadata of ' + '"' + file.getName() + '"')
                     
             # 1st LEVEL: One word. 
             #   - We can only include one word to search
             elif (re.search(pattern_1, self.wordToSearch)):
                 validation = 0
+                metadataTagValueList = []
                 output = self.wordToSearch
                     
                 for m in range(0, len(metadata)):
                     
                     # Check the value of the metadata: if it is not a string, convert it to string for a correct evaluation 
-                    # metadata_att is the str of each attribute                   
-                    metadata_att = ImageAnalyzerLib.metadataToString(list(metadata.values())[m])
+                    # metadataValue is the str of each metadata value                   
+                    metadataValue = ImageAnalyzerLib.metadataToString(imageMetadataValueList[m])
                                    
-                    if output in metadata_att:
+                    if output in metadataValue:
+                        metadataTagValue = imageMetadataTagList[m] + "=>" + metadataValue
+                        metadataTagValueList.append(metadataTagValue)
                         validation += 1
-                    
+                
+                # If it is true, the 1st level condition has been accomplished
+                # Adding the comments, that is the tags where the metadata values have been found
                 if validation > 0:
 
-                    ImageAnalyzerLib.addInterestingFileHitAttribute(artifact2, ImageMetadataFileIngestModuleWithUIFactory.moduleName,
-                                                                    self.wordToSearch)
+                    # Dictionary (key:value) with the attribute name (key) and its type (value)
+                    # { AttributeName: AttributeType }
+                    attributesDict = {
+                        self.wordToSearch: BlackboardAttribute.ATTRIBUTE_TYPE.TSK_SET_NAME,
+                        ' | \n'.join(metadataTagValueList): BlackboardAttribute.ATTRIBUTE_TYPE.TSK_COMMENT
+                        }
+                    
+                    ImageAnalyzerLib.addInterestingFileHitAttributes(interestingFileHitArtifact,
+                                                                     ImageMetadataFileIngestModuleWithUIFactory.moduleName,
+                                                                     attributesDict)
                     
                 else:
                     
                     ImageAnalyzerLib.postInformationForTheUser(self, ImageMetadataFileIngestModuleWithUIFactory.moduleName,
                                                                Level.INFO, IngestMessage.MessageType.WARNING, 
-                                                               '"' + self.wordToSearch + '" filter not found in the metadata of the image ' + '"' + file.getName() + '"')
+                                                               '"' + self.wordToSearch + '" filter not found in the metadata of ' + '"' + file.getName() + '"')
                     
             elif (self.wordToSearch == ""):
                 self.log(Level.INFO, "You have not entered any filter")
@@ -656,7 +938,7 @@ class ImageMetadataFileIngestModuleWithUISettingsPanel(IngestModuleIngestJobSett
         label3.setBounds(0, 220, 300, 20)
         self.add(label3)
         
-        label3_1 = JLabel("For example: Canon or iPhone")
+        label3_1 = JLabel("For example: Canon OR iPhone")
         label3_1.setHorizontalAlignment(SwingConstants.LEFT)
         label3_1.setFont(Font("Default", Font.ITALIC, 8))
         label3_1.setBounds(0, 233, 300, 20)
@@ -706,7 +988,7 @@ class ImageMetadataFileIngestModuleWithUISettingsPanel(IngestModuleIngestJobSett
         # Mantain the GUI HEIC box selected if selected before
         self.heic_checkbox.setSelected(self.local_settings.getSetting("heic") == "true")
         
-        # Mantain the GUI Filter box selected if selected before
+        # Mantain the GUI "Use only the Image Metadata Filter" box selected if selected before
         self.filter_checkbox.setSelected(self.local_settings.getSetting("filter") == "true")
 
     # Return the settings used

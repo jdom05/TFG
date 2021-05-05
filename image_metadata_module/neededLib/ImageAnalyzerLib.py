@@ -72,7 +72,14 @@ def startUpLogs(self):
             self.log(Level.INFO, "heic is set")
         else:
             self.log(Level.INFO, "heic is not set")
+            
+        if self.local_settings.getSetting("filter") == "true":
+            self.log(Level.INFO, "Use only the Image Metadata Filter is set")
+        else:
+            self.log(Level.INFO, "Use only the Image Metadata Filter is not set")
     
+
+
 # Write logs and post them on the User Interface to inform the user of any inconvenience or interesting information 
 def postInformationForTheUser(self, moduleName, levelType, messageType, sentence):
     
@@ -82,18 +89,20 @@ def postInformationForTheUser(self, moduleName, levelType, messageType, sentence
     ingestServices = IngestServices.getInstance().postMessage(message)
     
 
+
 # Check the value of the metadata: if it is not a string, convert it to string for a correct printing 
 # metadataValue -> corresponds to each value/attribute of the metadata analyzed by the exiftool library
 # Returns the string of each metadata attribute
 def metadataToString(metadataValue):
 
     if type(metadataValue) is not str:
-        metadata_att = str(metadataValue)
+        metadataValueStr = str(metadataValue)
     else:
-        metadata_att = metadataValue
+        metadataValueStr = metadataValue
         
-    return metadata_att
+    return metadataValueStr
     
+
 
 # Add the new Attribute with the value of the metadata analyzed
 # metadataAttributeName -> corresponds to each name/title of the metadata analyzed by the exiftool library
@@ -116,6 +125,7 @@ def addNewMetadataAttribute(blackboard, artifact, artId, moduleName, metadataAtt
     IngestServices.getInstance().fireModuleDataEvent(ModuleDataEvent(moduleName, artId, None))
     
 
+
 # Add a new Attribute in the File Interesting Hit Artifact
 # artifact -> File Interesting Hit Artifact
 # moduleName -> name of the module
@@ -127,6 +137,28 @@ def addInterestingFileHitAttribute(artifact, moduleName, attributeName):
     artifact.addAttribute(attribute)
     
     IngestServices.getInstance().fireModuleDataEvent(ModuleDataEvent(moduleName, BlackboardArtifact.ARTIFACT_TYPE.TSK_INTERESTING_FILE_HIT, None))
+    
+
+
+# Add a new Attributes in the File Interesting Hit Artifact
+# artifact -> File Interesting Hit Artifact
+# moduleName -> name of the module
+# attributeName -> name of the attribute we want to visualize on the blackboard
+# comment -> string, comment you want to add
+# attributesDict -> dictrionary with the name of the attributes and its type (ex: {'iPhone' : BlackboardAttribute.ATTRIBUTE_TYPE.TSK_SET_NAME})    
+def addInterestingFileHitAttributes(artifact, moduleName, attributesDict):
+    attributesList = []
+    
+    for m in range(0, len(attributesDict)):
+        attribute = BlackboardAttribute(list(attributesDict.values())[m].getTypeID(), moduleName, list(attributesDict)[m])
+        attributesList.append(attribute)
+        
+    
+    artifact.addAttributes(attributesList)
+    
+    IngestServices.getInstance().fireModuleDataEvent(ModuleDataEvent(moduleName,
+                                                                     BlackboardArtifact.ARTIFACT_TYPE.TSK_INTERESTING_FILE_HIT, None))
+    
     
     
     
