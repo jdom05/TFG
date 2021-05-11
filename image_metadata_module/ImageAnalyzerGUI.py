@@ -90,7 +90,7 @@ class ImageMetadataFileIngestModuleWithUIFactory(IngestModuleFactoryAdapter):
         self.settings = None
 
     # Give it a unique name.  Will be shown in module list, logs, etc.
-    moduleName = "Image Metadata Analyzer with GUI"
+    moduleName = "Image Metadata Analyzer Module"
 
     def getModuleDisplayName(self):
         return self.moduleName
