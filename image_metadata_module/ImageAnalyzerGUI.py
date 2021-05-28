@@ -50,9 +50,8 @@ import jarray
 import inspect
 from java.lang import System
 from java.util.logging import Level
-from java.awt import Panel, BorderLayout, EventQueue, GridLayout, GridBagLayout, GridBagConstraints, Font, Color 
-from javax.swing import JCheckBox, JLabel, JTextField, JButton, JFrame, JComboBox, JProgressBar, JMenuBar, JMenuItem, JTabbedPane, JPasswordField, SwingConstants, BoxLayout, JPanel
-from javax.swing.border import TitledBorder, EtchedBorder, EmptyBorder
+from java.awt import Panel, BorderLayout, EventQueue, GridLayout, GridBagLayout, GridBagConstraints, Font, Color, CardLayout, Component, FlowLayout, Dimension
+from javax.swing import JFrame, JLabel, JButton, JTextField, JComboBox, JTextField, JProgressBar, JMenuBar, JMenuItem, JTabbedPane, JPasswordField, JCheckBox, SwingConstants, BoxLayout, JPanel, JScrollPane
 from org.sleuthkit.autopsy.casemodule import Case
 from org.sleuthkit.autopsy.casemodule.services import Services
 from org.sleuthkit.autopsy.ingest import DataSourceIngestModule
@@ -81,11 +80,19 @@ from neededLib.exiftool import ExifTool
 from neededLib import ImageAnalyzerLib
 import re
 
-PATH_WINDOWS = "C:\WINDOWS\exiftool.exe" #WINDOWS path to the exiftool executable
-PATH_MACOS = "/usr/local/bin/exiftool" #MACOS path to the exiftool executable
+PATH_WINDOWS = "C:\WINDOWS\exiftool.exe" # WINDOWS path to the exiftool executable
+PATH_MACOS = "/usr/local/bin/exiftool" # MACOS path to the exiftool executable
 
+filterCounter = 0
+imageFound = False
+
+
+#============================================================================================================#
+#                              -- MODULE'S BASIC CONFIGURATION RELATED CLASS --                              #
+#============================================================================================================#
 
 class ImageMetadataFileIngestModuleWithUIFactory(IngestModuleFactoryAdapter):
+    
     def __init__(self):
         self.settings = None
 
@@ -106,7 +113,7 @@ class ImageMetadataFileIngestModuleWithUIFactory(IngestModuleFactoryAdapter):
         return GenericIngestModuleJobSettings()
     
     
-    #====================== PANEL GUI ==========================#
+    #=========================== start of Panel GUI basic configuration methods ===============================#
     
     # Keep enabled only if you need ingest job-specific settings UI
     def hasIngestJobSettingsPanel(self):
@@ -125,9 +132,13 @@ class ImageMetadataFileIngestModuleWithUIFactory(IngestModuleFactoryAdapter):
     def createFileIngestModule(self, ingestOptions):
         return ImageMetadataFileIngestModuleWithUI(self.settings)
     
-    #===========================================================#
+    #=========================== end of Panel GUI basic configuration methods ===============================#
     
 
+
+#============================================================================================================#
+#                               -- MODULE'S MAIN FUNCTIONALITY RELATED CLASS --                              #
+#============================================================================================================#
 
 # File-level ingest module.  One gets created per thread.
 # Looks at the attributes of the passed in file.
@@ -184,7 +195,6 @@ class ImageMetadataFileIngestModuleWithUI(FileIngestModule):
              
             self.log(Level.INFO, "Platform used: " + PlatformUtil.getOSName())
             
-            self.log(Level.INFO, "Word searched: " + self.local_settings.getSetting("word_search"))
             
             # Check the platform the user is using
             if "Mac" in PlatformUtil.getOSName():
@@ -230,7 +240,7 @@ class ImageMetadataFileIngestModuleWithUI(FileIngestModule):
             self.log(Level.INFO, "Files analyzed: " + str(self.filesAnalyzed))
             
             
-            #============================== start of IMAGE METADATA ANALYSIS ==============================#
+            #=============================== start of IMAGE METADATA ANALYSIS ===============================#
             
             # Use blackboard class to index blackboard artifacts for keyword search
             blackboard = Case.getCurrentCase().getServices().getBlackboard()
@@ -321,10 +331,10 @@ class ImageMetadataFileIngestModuleWithUI(FileIngestModule):
                                                                        "Error adding Other Attribute " + imageMetadataTagList[m] + " to the Artifact!")
                         
                 
-            #============================== end of IMAGE METADATA ANALYSIS ==============================#
+            #================================ end of IMAGE METADATA ANALYSIS ================================#
             
             
-            #============================== start of IMAGE METADATA FILTERING ==============================#
+            #============================== start of IMAGE METADATA FILTERING ===============================#
             
             # Different levels:
             #   - 1st level => basic one condition filter
@@ -355,395 +365,348 @@ class ImageMetadataFileIngestModuleWithUI(FileIngestModule):
             
             pattern_8 = "[a-zA-Z0-9]\s(DOES\sNOT\sCONTAIN)\s[a-zA-Z0-9]"
             
-            self.wordToSearch = self.local_settings.getSetting("word_search")
-            self.log(Level.INFO, "wordToSearch: " + self.wordToSearch)
+            self.filterFound = True
+            #imageFound = False
+            
+            self.fileHitName_info = ""
+            self.fileHitComment_info = ""
+            
+            global imageFound
+            
+
+            for m in range(filterCounter):
+                self.wordToSearch = self.local_settings.getSetting("word_search_" + str(m+1))
+                self.log(Level.INFO, "word_search_" + str(m+1) + ": " + self.wordToSearch)
+                
             
             interestingFileHitArtifact = file.newArtifact(BlackboardArtifact.ARTIFACT_TYPE.TSK_INTERESTING_FILE_HIT)
             
-            
-            # 5th LEVEL: "=="
-            if (re.search(pattern_5, self.wordToSearch)):
-                validation = 0
+            for m in range(filterCounter):
                 
-                # output[0] = tag of the metadata
-                # output[1] = corresponding value of the metadata
-                output = re.split("\s==\s", self.wordToSearch)
+                self.wordToSearch = self.local_settings.getSetting("word_search_" + str(m+1))
                 
-                for m in range(0, len(metadata)):
-                    
-                    metadataValue = ImageAnalyzerLib.metadataToString(imageMetadataValueList[m])
-                    
-                    metadataTagPairs = re.split(":", imageMetadataTagList[m])
-        
-                    # There is usually an error with the first metadata because does not cotain the ':', 
-                    # and for that reason there is only 1 name in the list and not 2
-                    try:
-                        metadataTag = metadataTagPairs[1]
-                    except:
-                        metadataTag = metadataTagPairs[0] 
-                    
-                    # If the tag is the same as introduced and it is the same name as the metadata value introduced, the filter is found
-                    if metadataTag == output[0] and metadataValue == output[1]:
-                        validation += 1
-                        metadataEntireTag = imageMetadataTagList[m]
-                        break
+                self.fileHitName_info += self.wordToSearch + " | \n"
                 
-                # If it is true, the "==" condition has been accomplished
-                if validation == 1:
-
-                    metadataTagValue = metadataEntireTag + "=>" + metadataValue 
-                    
-                    # Dictionary (key:value) with the attribute name (key) and its type (value)
-                    attributesDict = {
-                        self.wordToSearch: BlackboardAttribute.ATTRIBUTE_TYPE.TSK_SET_NAME,
-                        metadataTagValue: BlackboardAttribute.ATTRIBUTE_TYPE.TSK_COMMENT
-                        }
-                    
-                    ImageAnalyzerLib.addInterestingFileHitAttributes(interestingFileHitArtifact,
-                                                                     ImageMetadataFileIngestModuleWithUIFactory.moduleName,
-                                                                     attributesDict)
-                    
-                    
-                else:
-                    
-                    ImageAnalyzerLib.postInformationForTheUser(self, ImageMetadataFileIngestModuleWithUIFactory.moduleName,
-                                                               Level.INFO, IngestMessage.MessageType.WARNING, 
-                                                               '"' + self.wordToSearch + '" filter not found in the metadata of ' + '"' + file.getName() + '"')
                 
-            # 6th LEVEL: "!="
-            elif (re.search(pattern_6, self.wordToSearch)):
-                validation = 0
+                if self.filterFound is True:
                 
-                # output[0] = tag of the metadata
-                # output[1] = corresponding value of the metadata
-                output = re.split("\s!=\s", self.wordToSearch)
-                
-                for m in range(0, len(metadata)):
-                    
-                    metadataValue = ImageAnalyzerLib.metadataToString(imageMetadataValueList[m])
-                    
-                    metadataTagPairs = re.split(":", imageMetadataTagList[m])
-        
-                    # There is usually an error with the first metadata because does not cotain the ':', 
-                    # and for that reason there is only 1 name in the list and not 2
-                    try:
-                        metadataTag = metadataTagPairs[1]
-                    except:
-                        metadataTag = metadataTagPairs[0] 
-                    
-                    # If the tag is the same as introduced and it is NOT the same name as the metadata value introduced, the filter is found
-                    if metadataTag == output[0] and metadataValue != output[1]:
-                        validation += 1
-                        metadataEntireTag = imageMetadataTagList[m]
-                        break
-                
-                # If it is true, the "!=" condition has been accomplished
-                if validation == 1:
-                    
-                    metadataTagValue = metadataEntireTag + "=>" + metadataValue 
-                    
-                    # Dictionary (key:value) with the attribute name (key) and its type (value)
-                    attributesDict = {
-                        self.wordToSearch: BlackboardAttribute.ATTRIBUTE_TYPE.TSK_SET_NAME,
-                        metadataTagValue: BlackboardAttribute.ATTRIBUTE_TYPE.TSK_COMMENT
-                        }
-                    
-                    ImageAnalyzerLib.addInterestingFileHitAttributes(interestingFileHitArtifact,
-                                                                     ImageMetadataFileIngestModuleWithUIFactory.moduleName,
-                                                                     attributesDict)
-                    
-                    
-                else:
-                    
-                    ImageAnalyzerLib.postInformationForTheUser(self, ImageMetadataFileIngestModuleWithUIFactory.moduleName,
-                                                               Level.INFO, IngestMessage.MessageType.WARNING, 
-                                                               '"' + self.wordToSearch + '" filter not found in the metadata of ' + '"' + file.getName() + '"')
-       
-            # 7th LEVEL: "CONTAINS"
-            elif (re.search(pattern_7, self.wordToSearch)):
-                validation = 0
-                
-                # output[0] = tag of the metadata
-                # output[1] = corresponding value of the metadata
-                output = re.split("\sCONTAINS\s", self.wordToSearch)
-                
-                for m in range(0, len(metadata)):
-                    
-                    metadataValue = ImageAnalyzerLib.metadataToString(imageMetadataValueList[m])
-                    
-                    metadataTagPairs = re.split(":", imageMetadataTagList[m])
-        
-                    # There is usually an error with the first metadata because does not cotain the ':', 
-                    # and for that reason there is only 1 name in the list and not 2
-                    try:
-                        metadataTag = metadataTagPairs[1]
-                    except:
-                        metadataTag = metadataTagPairs[0] 
-                    
-                    # If the tag is the same as introduced and it CONTAINS the metadata value introduced, the filter is found
-                    # Here is the difference between '==' and 'CONTAINS' => output[1] in metadataValue
-                    if (metadataTag == output[0]) and (output[1] in metadataValue):
-                        validation += 1
-                        metadataEntireTag = imageMetadataTagList[m]
-                        break
-                
-                # If it is true, the "CONTAINS" condition has been accomplished
-                if validation == 1:
-                    
-                    metadataTagValue = metadataEntireTag + "=>" + metadataValue 
-                    
-                    # Dictionary (key:value) with the attribute name (key) and its type (value)
-                    attributesDict = {
-                        self.wordToSearch: BlackboardAttribute.ATTRIBUTE_TYPE.TSK_SET_NAME,
-                        metadataTagValue: BlackboardAttribute.ATTRIBUTE_TYPE.TSK_COMMENT
-                        }
-                    
-                    ImageAnalyzerLib.addInterestingFileHitAttributes(interestingFileHitArtifact,
-                                                                     ImageMetadataFileIngestModuleWithUIFactory.moduleName,
-                                                                     attributesDict)
-                    
-                    
-                else:
-                    
-                    ImageAnalyzerLib.postInformationForTheUser(self, ImageMetadataFileIngestModuleWithUIFactory.moduleName,
-                                                               Level.INFO, IngestMessage.MessageType.WARNING, 
-                                                               '"' + self.wordToSearch + '" filter not found in the metadata of ' + '"' + file.getName() + '"')
-            
-            # 8th LEVEL: "DOES NOT CONTAIN"
-            elif (re.search(pattern_8, self.wordToSearch)):
-                validation = 0
-                
-                # output[0] = tag of the metadata
-                # output[1] = corresponding value of the metadata
-                output = re.split("\sDOES\sNOT\sCONTAIN\s", self.wordToSearch)
-                
-                for m in range(0, len(metadata)):
-                    
-                    metadataValue = ImageAnalyzerLib.metadataToString(imageMetadataValueList[m])
-                    
-                    metadataTagPairs = re.split(":", imageMetadataTagList[m])
-        
-                    # There is usually an error with the first metadata because does not cotain the ':', 
-                    # and for that reason there is only 1 name in the list and not 2
-                    try:
-                        metadataTag = metadataTagPairs[1]
-                    except:
-                        metadataTag = metadataTagPairs[0] 
-                    
-                    # If the tag is the same as introduced and it DOES NOT CONTAIN the metadata value introduced, the filter is found
-                    # Here is the difference between '!=' and 'DOES NOT CONTAIN' => output[1] not in metadataValue
-                    if (metadataTag == output[0]) and (output[1] not in metadataValue):
-                        validation += 1
-                        metadataEntireTag = imageMetadataTagList[m]
-                        break
-                
-                # If it is true, the "DOES NOT CONTAIN" condition has been accomplished
-                if validation == 1:
-                    
-                    metadataTagValue = metadataEntireTag + "=>" + metadataValue 
-                    
-                    # Dictionary (key:value) with the attribute name (key) and its type (value)
-                    attributesDict = {
-                        self.wordToSearch: BlackboardAttribute.ATTRIBUTE_TYPE.TSK_SET_NAME,
-                        metadataTagValue: BlackboardAttribute.ATTRIBUTE_TYPE.TSK_COMMENT
-                        }
-                    
-                    ImageAnalyzerLib.addInterestingFileHitAttributes(interestingFileHitArtifact,
-                                                                     ImageMetadataFileIngestModuleWithUIFactory.moduleName,
-                                                                     attributesDict)
-                    
-                else:
-                    
-                    ImageAnalyzerLib.postInformationForTheUser(self, ImageMetadataFileIngestModuleWithUIFactory.moduleName,
-                                                               Level.INFO, IngestMessage.MessageType.WARNING, 
-                                                               '"' + self.wordToSearch + '" filter not found in the metadata of ' + '"' + file.getName() + '"')
-            
-            # 2nd LEVEL: "AND". 
-            #   - We can include as many "AND" as we want: Canon AND iPhone AND Jordi AND ...    
-            elif (re.search(pattern_2, self.wordToSearch)):
-                metadataTagValueList = []
-                validation = 0
-                output = re.split("\sAND\s", self.wordToSearch) # Output is a list containing the words to search
-                
-                for x in output:
-                    
-                    for m in range(0, len(metadata)):
+                    # 5th LEVEL: "=="
+                    if (re.search(pattern_5, self.wordToSearch)):
+                        validation = 0
                         
-                        # Check the value of the metadata: if it is not a string, convert it to string for a correct evaluation 
-                        # metadataValue is the str of each metadata value                   
-                        metadataValue = ImageAnalyzerLib.metadataToString(imageMetadataValueList[m])
-                            
-                        if x in metadataValue:
-                            validation += 1
-                            break
-                
-                # If it is true, the "AND" condition has been accomplished        
-                if validation == len(output):
-                    
-                    # Adding the comments, that is the tags where the metadata values have been found
-                    for x in output:
+                        # output[0] = tag of the metadata
+                        # output[1] = corresponding value of the metadata
+                        output = re.split("\s==\s", self.wordToSearch)
+                        
                         for m in range(0, len(metadata)):
                             
                             metadataValue = ImageAnalyzerLib.metadataToString(imageMetadataValueList[m])
                             
-                            if x in metadataValue:
-                                metadataTagValue = imageMetadataTagList[m] + "=>" + metadataValue
-                                metadataTagValueList.append(metadataTagValue)
+                            metadataTagPairs = re.split(":", imageMetadataTagList[m])
                 
-                    
-                    # Dictionary (key:value) with the attribute name (key) and its type (value)
-                    attributesDict = {
-                        self.wordToSearch: BlackboardAttribute.ATTRIBUTE_TYPE.TSK_SET_NAME,
-                        ' | \n'.join(metadataTagValueList): BlackboardAttribute.ATTRIBUTE_TYPE.TSK_COMMENT
-                        }
-                    
-                    ImageAnalyzerLib.addInterestingFileHitAttributes(interestingFileHitArtifact,
-                                                                     ImageMetadataFileIngestModuleWithUIFactory.moduleName,
-                                                                     attributesDict)
-                    
-                else:
-                    
-                    ImageAnalyzerLib.postInformationForTheUser(self, ImageMetadataFileIngestModuleWithUIFactory.moduleName,
-                                                               Level.INFO, IngestMessage.MessageType.WARNING, 
-                                                               '"' + self.wordToSearch + '" filter not found in the metadata of ' + '"' + file.getName() + '"')
-                    
-            # 3rd LEVEL: "OR". 
-            #   - We can include as many "OR" as we want: Canon OR iPhone OR Jordi OR ...
-            elif (re.search(pattern_3, self.wordToSearch)):
-                metadataTagValueList = []
-                validation = 0
-                output = re.split("\sOR\s", self.wordToSearch) # Output is a list containing the words to search
-                
-                for x in output:
-                    
-                    for m in range(0, len(metadata)):
+                            # There is usually an error with the first metadata because does not cotain the ':', 
+                            # and for that reason there is only 1 name in the list and not 2
+                            try:
+                                metadataTag = metadataTagPairs[1]
+                            except:
+                                metadataTag = metadataTagPairs[0] 
+                            
+                            # If the tag is the same as introduced and it is the same name as the metadata value introduced, the filter is found
+                            if metadataTag.lower() == output[0].lower() and metadataValue.lower() == output[1].lower():
+                                validation += 1
+                                metadataEntireTag = imageMetadataTagList[m]
+                                break
                         
-                        # Check the value of the metadata: if it is not a string, convert it to string for a correct evaluation 
-                        # metadataValue is the str of each metadata value                   
-                        metadataValue = ImageAnalyzerLib.metadataToString(imageMetadataValueList[m])
-                                       
-                        if x in metadataValue:
-                            validation += 1
-                
-                # If it is true, the "OR" condition has been accomplished
-                if validation > 0:
-                    
-                    # Adding the comments, that is the tags where the metadata values have been found
-                    for x in output:
+                        # If it is true, the "==" condition has been accomplished
+                        if validation == 1:
+        
+                            metadataTagValue = metadataEntireTag + "=>" + metadataValue 
+                            
+                            self.fileHitComment_info += "\n" + metadataTagValue + " | "
+                            
+                        else:
+                            self.filterFound = False
+                            self.log(Level.INFO, '"' + self.wordToSearch + '" filter not found in the metadata of ' + '"' + file.getName() + '"')
+                        
+                    # 6th LEVEL: "!="
+                    elif (re.search(pattern_6, self.wordToSearch)):
+                        validation = 0
+                        
+                        # output[0] = tag of the metadata
+                        # output[1] = corresponding value of the metadata
+                        output = re.split("\s!=\s", self.wordToSearch)
+                        
                         for m in range(0, len(metadata)):
                             
                             metadataValue = ImageAnalyzerLib.metadataToString(imageMetadataValueList[m])
                             
-                            if x in metadataValue:
+                            metadataTagPairs = re.split(":", imageMetadataTagList[m])
+                
+                            # There is usually an error with the first metadata because does not cotain the ':', 
+                            # and for that reason there is only 1 name in the list and not 2
+                            try:
+                                metadataTag = metadataTagPairs[1]
+                            except:
+                                metadataTag = metadataTagPairs[0] 
+                            
+                            # If the tag is the same as introduced and it is NOT the same name as the metadata value introduced, the filter is found
+                            if metadataTag.lower() == output[0].lower() and metadataValue.lower() != output[1].lower():
+                                validation += 1
+                                metadataEntireTag = imageMetadataTagList[m]
+                                break
+                        
+                        # If it is true, the "!=" condition has been accomplished
+                        if validation == 1:
+                            
+                            metadataTagValue = metadataEntireTag + "=>" + metadataValue 
+                            
+                            self.fileHitComment_info += "\n" + metadataTagValue + " | "
+                            
+                        else:
+                            self.filterFound = False
+                            self.log(Level.INFO, '"' + self.wordToSearch + '" filter not found in the metadata of ' + '"' + file.getName() + '"')
+               
+                    # 7th LEVEL: "CONTAINS"
+                    elif (re.search(pattern_7, self.wordToSearch)):
+                        validation = 0
+                        
+                        # output[0] = tag of the metadata
+                        # output[1] = corresponding value of the metadata
+                        output = re.split("\sCONTAINS\s", self.wordToSearch)
+                        
+                        for m in range(0, len(metadata)):
+                            
+                            metadataValue = ImageAnalyzerLib.metadataToString(imageMetadataValueList[m])
+                            
+                            metadataTagPairs = re.split(":", imageMetadataTagList[m])
+                
+                            # There is usually an error with the first metadata because does not cotain the ':', 
+                            # and for that reason there is only 1 name in the list and not 2
+                            try:
+                                metadataTag = metadataTagPairs[1]
+                            except:
+                                metadataTag = metadataTagPairs[0] 
+                            
+                            # If the tag is the same as introduced and it CONTAINS the metadata value introduced, the filter is found
+                            # Here is the difference between '==' and 'CONTAINS' => output[1] in metadataValue
+                            if (metadataTag.lower() == output[0].lower()) and (output[1].lower() in metadataValue.lower()):
+                                validation += 1
+                                metadataEntireTag = imageMetadataTagList[m]
+                                break
+                        
+                        # If it is true, the "CONTAINS" condition has been accomplished
+                        if validation == 1:
+                            
+                            metadataTagValue = metadataEntireTag + "=>" + metadataValue 
+                            
+                            self.fileHitComment_info += "\n" + metadataTagValue + " | "
+
+                        else:
+                            self.filterFound = False
+                            self.log(Level.INFO, '"' + self.wordToSearch + '" filter not found in the metadata of ' + '"' + file.getName() + '"')
+                    
+                    # 8th LEVEL: "DOES NOT CONTAIN"
+                    elif (re.search(pattern_8, self.wordToSearch)):
+                        validation = 0
+                        
+                        # output[0] = tag of the metadata
+                        # output[1] = corresponding value of the metadata
+                        output = re.split("\sDOES\sNOT\sCONTAIN\s", self.wordToSearch)
+                        
+                        for m in range(0, len(metadata)):
+                            
+                            metadataValue = ImageAnalyzerLib.metadataToString(imageMetadataValueList[m])
+                            
+                            metadataTagPairs = re.split(":", imageMetadataTagList[m])
+                
+                            # There is usually an error with the first metadata because does not cotain the ':', 
+                            # and for that reason there is only 1 name in the list and not 2
+                            try:
+                                metadataTag = metadataTagPairs[1]
+                            except:
+                                metadataTag = metadataTagPairs[0] 
+                            
+                            # If the tag is the same as introduced and it DOES NOT CONTAIN the metadata value introduced, the filter is found
+                            # Here is the difference between '!=' and 'DOES NOT CONTAIN' => output[1] not in metadataValue
+                            if (metadataTag.lower() == output[0].lower()) and (output[1].lower() not in metadataValue.lower()):
+                                validation += 1
+                                metadataEntireTag = imageMetadataTagList[m]
+                                break
+                        
+                        # If it is true, the "DOES NOT CONTAIN" condition has been accomplished
+                        if validation == 1:
+                            
+                            metadataTagValue = metadataEntireTag + "=>" + metadataValue 
+                            
+                            self.fileHitComment_info += "\n" + metadataTagValue + " | "
+ 
+                        else:
+                            self.filterFound = False
+                            self.log(Level.INFO, '"' + self.wordToSearch + '" filter not found in the metadata of ' + '"' + file.getName() + '"')
+                    
+                    # 2nd LEVEL: "AND". 
+                    #   - We can include as many "AND" as we want: Canon AND iPhone AND Jordi AND ...    
+                    elif (re.search(pattern_2, self.wordToSearch)):
+                        metadataTagValueList = []
+                        validation = 0
+                        output = re.split("\sAND\s", self.wordToSearch) # Output is a list containing the words to search
+                        
+                        for x in output:
+                            
+                            for m in range(0, len(metadata)):
+                                
+                                # Check the value of the metadata: if it is not a string, convert it to string for a correct evaluation 
+                                # metadataValue is the str of each metadata value                   
+                                metadataValue = ImageAnalyzerLib.metadataToString(imageMetadataValueList[m])
+                                    
+                                if x.lower() in metadataValue.lower():
+                                    validation += 1
+                                    break
+                        
+                        # If it is true, the "AND" condition has been accomplished        
+                        if validation == len(output):
+                            
+                            # Adding the comments, that is the tags where the metadata values have been found
+                            for x in output:
+                                for m in range(0, len(metadata)):
+                                    
+                                    metadataValue = ImageAnalyzerLib.metadataToString(imageMetadataValueList[m])
+                                    
+                                    if x.lower() in metadataValue.lower():
+                                        metadataTagValue = imageMetadataTagList[m] + "=>" + metadataValue
+                                        metadataTagValueList.append(metadataTagValue)
+                            
+                            self.fileHitComment_info += "\n" + ' | \n'.join(metadataTagValueList)
+                            
+                        else:
+                            self.filterFound = False
+                            self.log(Level.INFO, '"' + self.wordToSearch + '" filter not found in the metadata of ' + '"' + file.getName() + '"')
+                            
+                    # 3rd LEVEL: "OR". 
+                    #   - We can include as many "OR" as we want: Canon OR iPhone OR Jordi OR ...
+                    elif (re.search(pattern_3, self.wordToSearch)):
+                        metadataTagValueList = []
+                        validation = 0
+                        output = re.split("\sOR\s", self.wordToSearch) # Output is a list containing the words to search
+                        
+                        for x in output:
+                            
+                            for m in range(0, len(metadata)):
+                                
+                                # Check the value of the metadata: if it is not a string, convert it to string for a correct evaluation 
+                                # metadataValue is the str of each metadata value                   
+                                metadataValue = ImageAnalyzerLib.metadataToString(imageMetadataValueList[m])
+                                               
+                                if x.lower() in metadataValue.lower():
+                                    validation += 1
+                        
+                        # If it is true, the "OR" condition has been accomplished
+                        if validation > 0:
+                            
+                            # Adding the comments, that is the tags where the metadata values have been found
+                            for x in output:
+                                for m in range(0, len(metadata)):
+                                    
+                                    metadataValue = ImageAnalyzerLib.metadataToString(imageMetadataValueList[m])
+                                    
+                                    if x.lower() in metadataValue.lower():
+                                        metadataTagValue = imageMetadataTagList[m] + "=>" + metadataValue
+                                        metadataTagValueList.append(metadataTagValue)
+                                        
+                            self.fileHitComment_info += "\n" + ' | \n'.join(metadataTagValueList)
+                            
+                        else:
+                            self.filterFound = False
+                            self.log(Level.INFO, '"' + self.wordToSearch + '" filter not found in the metadata of ' + '"' + file.getName() + '"')
+                                          
+                    # 4th LEVEL: "NOT". 
+                    #   - We can only include one "not"
+                    elif (re.search(pattern_4, self.wordToSearch)):
+                        validation = 0
+                        output = re.sub("NOT\s", "", self.wordToSearch) # Output is a list containing the words to search
+                            
+                        for m in range(0, len(metadata)):
+                            
+                            # Check the value of the metadata: if it is not a string, convert it to string for a correct evaluation 
+                            # metadataValue is the str of each metadata value                   
+                            metadataValue = ImageAnalyzerLib.metadataToString(imageMetadataValueList[m])
+                                           
+                            if output.lower() in metadataValue.lower():
+                                validation += 1
+                        
+                        # If it is true, the "NOT" condition has been accomplished
+                        if validation == 0:
+                            
+                            self.fileHitComment_info += "\n" + "The metadata of the image does NOT contain the word searched: " + output + " | "
+                            
+                        else:
+                            self.filterFound = False
+                            self.log(Level.INFO, '"' + self.wordToSearch + '" filter not found in the metadata of ' + '"' + file.getName() + '"')
+                            
+                    # 1st LEVEL: One word. 
+                    #   - We can only include one word to search
+                    elif (re.search(pattern_1, self.wordToSearch)):
+                        validation = 0
+                        metadataTagValueList = []
+                        output = self.wordToSearch
+                            
+                        for m in range(0, len(metadata)):
+                            
+                            # Check the value of the metadata: if it is not a string, convert it to string for a correct evaluation 
+                            # metadataValue is the str of each metadata value                   
+                            metadataValue = ImageAnalyzerLib.metadataToString(imageMetadataValueList[m])
+                                           
+                            if output.lower() in metadataValue.lower():
                                 metadataTagValue = imageMetadataTagList[m] + "=>" + metadataValue
                                 metadataTagValueList.append(metadataTagValue)
-
-                    
-                    # Dictionary (key:value) with the attribute name (key) and its type (value)
-                    attributesDict = {
-                        self.wordToSearch: BlackboardAttribute.ATTRIBUTE_TYPE.TSK_SET_NAME,
-                        ' | \n'.join(metadataTagValueList): BlackboardAttribute.ATTRIBUTE_TYPE.TSK_COMMENT
-                        }
-                    
-                    ImageAnalyzerLib.addInterestingFileHitAttributes(interestingFileHitArtifact,
-                                                                     ImageMetadataFileIngestModuleWithUIFactory.moduleName,
-                                                                     attributesDict)
-                    
-                else:
-                    
-                    ImageAnalyzerLib.postInformationForTheUser(self, ImageMetadataFileIngestModuleWithUIFactory.moduleName,
-                                                               Level.INFO, IngestMessage.MessageType.WARNING, 
-                                                               '"' + self.wordToSearch + '" filter not found in the metadata of ' + '"' + file.getName() + '"')
-                                  
-            # 4th LEVEL: "NOT". 
-            #   - We can only include one "not"
-            elif (re.search(pattern_4, self.wordToSearch)):
-                validation = 0
-                output = re.sub("NOT\s", "", self.wordToSearch) # Output is a list containing the words to search
-                    
-                for m in range(0, len(metadata)):
-                    
-                    # Check the value of the metadata: if it is not a string, convert it to string for a correct evaluation 
-                    # metadataValue is the str of each metadata value                   
-                    metadataValue = ImageAnalyzerLib.metadataToString(imageMetadataValueList[m])
+                                validation += 1
+                        
+                        # If it is true, the 1st level condition has been accomplished
+                        # Adding the comments, that is the tags where the metadata values have been found
+                        if validation > 0:
+                            
+                            self.fileHitComment_info += "\n" + ' | \n'.join(metadataTagValueList)
+                            
+                        else:
+                            self.filterFound = False
+                            self.log(Level.INFO, '"' + self.wordToSearch + '" filter not found in the metadata of ' + '"' + file.getName() + '"')
+                            
+                    elif (self.wordToSearch == ""):
+                        
+                        self.filterFound = False
+                        self.log(Level.INFO, "You have not entered any filter")
                                    
-                    if output in metadataValue:
-                        validation += 1
+                    else:
+                        
+                        self.filterFound = False
+                        ImageAnalyzerLib.postInformationForTheUser(self, ImageMetadataFileIngestModuleWithUIFactory.moduleName,
+                                                                   Level.WARNING, IngestMessage.MessageType.ERROR, "Incorrect filter's input!")
+                            
+            # If we find an image that contains the filters, we add the Interesting File Hit Attribute            
+            if self.filterFound:
                 
-                # If it is true, the "NOT" condition has been accomplished
-                if validation == 0:
-                    
-                    # Dictionary (key:value) with the attribute name (key) and its type (value)
-                    attributesDict = {
-                        self.wordToSearch: BlackboardAttribute.ATTRIBUTE_TYPE.TSK_SET_NAME,
-                        ("The metadata of the image does NOT contain the word searched: " + output): BlackboardAttribute.ATTRIBUTE_TYPE.TSK_COMMENT
-                        }
-                    
-                    ImageAnalyzerLib.addInterestingFileHitAttributes(interestingFileHitArtifact,
-                                                                     ImageMetadataFileIngestModuleWithUIFactory.moduleName,
-                                                                     attributesDict)
-                    
-                else:
-                    
-                    ImageAnalyzerLib.postInformationForTheUser(self, ImageMetadataFileIngestModuleWithUIFactory.moduleName,
-                                                               Level.INFO, IngestMessage.MessageType.WARNING, 
-                                                               '"' + self.wordToSearch + '" filter not found in the metadata of ' + '"' + file.getName() + '"')
-                    
-            # 1st LEVEL: One word. 
-            #   - We can only include one word to search
-            elif (re.search(pattern_1, self.wordToSearch)):
-                validation = 0
-                metadataTagValueList = []
-                output = self.wordToSearch
-                    
-                for m in range(0, len(metadata)):
-                    
-                    # Check the value of the metadata: if it is not a string, convert it to string for a correct evaluation 
-                    # metadataValue is the str of each metadata value                   
-                    metadataValue = ImageAnalyzerLib.metadataToString(imageMetadataValueList[m])
-                                   
-                    if output in metadataValue:
-                        metadataTagValue = imageMetadataTagList[m] + "=>" + metadataValue
-                        metadataTagValueList.append(metadataTagValue)
-                        validation += 1
+                # Dictionary (key:value) with the attribute name (key) and its type (value)
+                # { AttributeName: AttributeType }
+                attributesDict = {
+                    self.fileHitName_info: BlackboardAttribute.ATTRIBUTE_TYPE.TSK_SET_NAME,
+                    self.fileHitComment_info: BlackboardAttribute.ATTRIBUTE_TYPE.TSK_COMMENT
+                    }
                 
-                # If it is true, the 1st level condition has been accomplished
-                # Adding the comments, that is the tags where the metadata values have been found
-                if validation > 0:
+                ImageAnalyzerLib.addInterestingFileHitAttributes(interestingFileHitArtifact,
+                                                                    ImageMetadataFileIngestModuleWithUIFactory.moduleName,
+                                                                    attributesDict)
+                
+                imageFound = True
+                
 
-                    # Dictionary (key:value) with the attribute name (key) and its type (value)
-                    # { AttributeName: AttributeType }
-                    attributesDict = {
-                        self.wordToSearch: BlackboardAttribute.ATTRIBUTE_TYPE.TSK_SET_NAME,
-                        ' | \n'.join(metadataTagValueList): BlackboardAttribute.ATTRIBUTE_TYPE.TSK_COMMENT
-                        }
-                    
-                    ImageAnalyzerLib.addInterestingFileHitAttributes(interestingFileHitArtifact,
-                                                                     ImageMetadataFileIngestModuleWithUIFactory.moduleName,
-                                                                     attributesDict)
-                    
-                else:
-                    
-                    ImageAnalyzerLib.postInformationForTheUser(self, ImageMetadataFileIngestModuleWithUIFactory.moduleName,
-                                                               Level.INFO, IngestMessage.MessageType.WARNING, 
-                                                               '"' + self.wordToSearch + '" filter not found in the metadata of ' + '"' + file.getName() + '"')
-                    
-            elif (self.wordToSearch == ""):
-                self.log(Level.INFO, "You have not entered any filter")
-                
-                    
-            else:
-                
-                ImageAnalyzerLib.postInformationForTheUser(self, ImageMetadataFileIngestModuleWithUIFactory.moduleName,
-                                                           Level.WARNING, IngestMessage.MessageType.ERROR, "Incorrect filter's input!")
-                
-                
+            self.log(Level.INFO, "Image Found: " + str(imageFound))
             
             #============================== end of IMAGE METADATA FILTERING ==============================#
             
             
-
         return IngestModule.ProcessResult.OK
+    
+    
 
     # Where any shutdown code is run and resources are freed.
     def shutDown(self):
@@ -753,22 +716,23 @@ class ImageMetadataFileIngestModuleWithUI(FileIngestModule):
                 str(self.filesAnalyzed) + " files analyzed")
         ingestServices = IngestServices.getInstance().postMessage(message)
         
-        """
-        if (self.wordToSearch == ""):
-            message = IngestMessage.createMessage(
-                    IngestMessage.MessageType.INFO, ImageMetadataFileIngestModuleWithUIFactory.moduleName, "You have not entered any filter")
-                
-            ingestServices = IngestServices.getInstance().postMessage(message)
-        """
-       
-        pass
+        global imageFound
+        
+        # If we have not found any image that contain the filters introduced, we send a message to the user
+        if (not imageFound) and (self.fileHitName_info != " | \n"):
+            self.log(Level.WARNING, 'Filter "'  + self.fileHitName_info + '" NOT FOUND !')
+            ImageAnalyzerLib.postInformationForTheUser(self, ImageMetadataFileIngestModuleWithUIFactory.moduleName,
+                                                       Level.WARNING, IngestMessage.MessageType.WARNING, 'Filter "'  + self.fileHitName_info + '" NOT FOUND !')
+    
+        
         
 
 
+#==============================================================================#
+#                        -- PANEL GUI RELATED CLASSES --                       #
+#==============================================================================#
 
-#============================================================#
-#                  -- PANEL RELATED CLASS --                 #
-#============================================================#
+#========================= start of GENERIC GUI CLASS =========================#
 
 # UI that is shown to user for each ingest job so they can configure the job.
 class ImageMetadataFileIngestModuleWithUISettingsPanel(IngestModuleIngestJobSettingsPanel):
@@ -786,11 +750,177 @@ class ImageMetadataFileIngestModuleWithUISettingsPanel(IngestModuleIngestJobSett
     def __init__(self, settings):
         self.local_settings = settings
         self.initComponents()
-        self.customizeComponents()
+        #self.customizeComponents()
+            
 
+    def initComponents(self):
+        
+        self.setLayout(None)
+        
+        self.card = CardLayout()
+        self.mainPanel = JPanel(self.card)
+        self.mainPanel.setBounds(0,0,350,265) 
+        
+        metadataAnalyzerGUI = JMetadataAnalyzerGUI(self.local_settings, self)
+        metadataFilterGUI = JMetadataFilterGUI(self.local_settings, self)
+        
+        metadataAnalyzerGUIPanel = metadataAnalyzerGUI.getPanel()
+        metadataFilterGUIPanel = metadataFilterGUI.getPanel()
+        
+        self.mainPanel.add(metadataAnalyzerGUIPanel, "1")
+        self.mainPanel.add(metadataFilterGUIPanel, "2")
+        
+        self.add(self.mainPanel)
+        
+        button1 = JButton("Analyzer Menu", actionPerformed = self.testEvent1)
+        button1.setHorizontalAlignment(SwingConstants.CENTER)
+        button1.setBounds(15, 275, 125, 22)
+        self.add(button1)
+        
+        button2 = JButton("Filter Menu", actionPerformed = self.testEvent2)
+        button2.setHorizontalAlignment(SwingConstants.CENTER)
+        button2.setBounds(160, 275, 125, 22)
+        self.add(button2)
+        
+        button3 = JButton("Load Module", actionPerformed = metadataFilterGUI.wordCheckBoxEvent)
+        button3.setHorizontalAlignment(SwingConstants.CENTER)
+        button3.setBounds(0, 300, 300, 22)
+        self.add(button3)
+        
+        
+    def customizeComponents(self):
+        pass
     
-    #=============== start CheckBox Events ===============#
     
+    def testEvent1(self, event):
+        self.card.show(self.mainPanel, "1")
+        
+        
+    def testEvent2(self, event):
+        self.card.show(self.mainPanel, "2")
+
+    # Return the settings used
+    def getSettings(self):
+        return self.local_settings
+
+#========================== end of GENERIC GUI CLASS ==========================#    
+
+
+#==================== start of METADATA ANALYZER GUI CLASS ====================#
+    
+class JMetadataAnalyzerGUI:
+    
+    def __init__(self, settings, frame):
+        
+        self.local_settings = settings
+        self.frame = frame
+        self.initComponents()
+        self.customizeComponents()
+        
+        
+    def initComponents(self):
+        
+        self.panel = JPanel()
+        self.panel.setLayout(None)
+        #self.panel.setBackground(Color.gray) 
+        
+        title1 = JLabel("IMAGE METADATA ANALYZER")
+        title1.setHorizontalAlignment(SwingConstants.LEFT)
+        title1.setFont(Font("Tahoma", Font.BOLD, 14))
+        title1.setBounds(5, 10, 300, 20)
+        self.panel.add(title1)
+        
+        label1 = JLabel("Select the type of Metadata you want to analyze:")
+        label1.setHorizontalAlignment(SwingConstants.LEFT)
+        label1.setFont(Font("Default", Font.PLAIN, 11))
+        label1.setBounds(5, 40, 300, 20)
+        self.panel.add(label1)
+        
+        # EXIF checkbox
+        self.exif_checkbox = JCheckBox("EXIF Metadata", actionPerformed=self.exifCheckBoxEvent)
+        self.exif_checkbox.setBounds(10, 60, 110, 20)
+        self.panel.add(self.exif_checkbox)
+        
+        # IPTC checkbox
+        self.iptc_checkbox = JCheckBox("IPTC Metadata", actionPerformed=self.iptcCheckBoxEvent)
+        self.iptc_checkbox.setBounds(130, 60, 110, 20)
+        self.panel.add(self.iptc_checkbox)
+        
+        # XMP checkbox
+        self.xmp_checkbox = JCheckBox("XMP Metadata", actionPerformed=self.xmpCheckBoxEvent)
+        self.xmp_checkbox.setBounds(10, 80, 110, 20)
+        self.panel.add(self.xmp_checkbox)
+        
+        # Other checkbox
+        self.other_checkbox = JCheckBox("Other", actionPerformed=self.otherCheckBoxEvent)
+        self.other_checkbox.setBounds(130, 80, 110, 20)
+        self.panel.add(self.other_checkbox)
+        
+        
+        label2 = JLabel("Select the type of image file you want to analyze:")
+        label2.setHorizontalAlignment(SwingConstants.LEFT)
+        label2.setFont(Font("Default", Font.PLAIN, 11))
+        label2.setBounds(5, 110, 300, 20)
+        self.panel.add(label2)
+        
+        # JPG checkbox
+        self.jpg_checkbox = JCheckBox("JPG (JPEG)", actionPerformed=self.jpgCheckBoxEvent)
+        self.jpg_checkbox.setBounds(10, 130, 80, 20)
+        self.panel.add(self.jpg_checkbox)
+        
+        # PNG checkbox
+        self.png_checkbox = JCheckBox("PNG", actionPerformed=self.pngCheckBoxEvent)
+        self.png_checkbox.setBounds(105, 130, 80, 20)
+        self.panel.add(self.png_checkbox)
+        
+        # TIFF checkbox
+        self.tiff_checkbox = JCheckBox("TIFF", actionPerformed=self.tiffCheckBoxEvent)
+        self.tiff_checkbox.setBounds(200, 130, 80, 20)
+        self.panel.add(self.tiff_checkbox)
+        
+        # GIF checkbox
+        self.gif_checkbox = JCheckBox("GIF", actionPerformed=self.gifCheckBoxEvent)
+        self.gif_checkbox.setBounds(10, 150, 80, 20)
+        self.panel.add(self.gif_checkbox)
+        
+        # HEIC checkbox
+        self.heic_checkbox = JCheckBox("HEIC", actionPerformed=self.heicCheckBoxEvent)
+        self.heic_checkbox.setBounds(105, 150, 80, 20)
+        self.panel.add(self.heic_checkbox)
+
+        self.frame.add(self.panel)
+        
+        
+    def customizeComponents(self):
+        
+        # Mantain the GUI EXIF box selected if selected before
+        self.exif_checkbox.setSelected(self.local_settings.getSetting("exif") == "true")
+        
+        # Mantain the GUI IPTC box selected if selected before
+        self.iptc_checkbox.setSelected(self.local_settings.getSetting("iptc") == "true")
+        
+        # Mantain the GUI XMP box selected if selected before
+        self.xmp_checkbox.setSelected(self.local_settings.getSetting("xmp") == "true")
+        
+        # Mantain the GUI Other box selected if selected before
+        self.other_checkbox.setSelected(self.local_settings.getSetting("other") == "true")
+        
+        # Mantain the GUI JPG box selected if selected before
+        self.jpg_checkbox.setSelected(self.local_settings.getSetting("jpg") == "true")
+        
+        # Mantain the GUI PNG box selected if selected before
+        self.png_checkbox.setSelected(self.local_settings.getSetting("png") == "true")
+        
+        # Mantain the GUI TIFF box selected if selected before
+        self.tiff_checkbox.setSelected(self.local_settings.getSetting("tiff") == "true")
+        
+        # Mantain the GUI GIF box selected if selected before
+        self.gif_checkbox.setSelected(self.local_settings.getSetting("gif") == "true")
+        
+        # Mantain the GUI HEIC box selected if selected before
+        self.heic_checkbox.setSelected(self.local_settings.getSetting("heic") == "true")
+        
+        
     def exifCheckBoxEvent(self, event):
         if self.exif_checkbox.isSelected():
             self.local_settings.setSetting("exif", "true")
@@ -846,151 +976,160 @@ class ImageMetadataFileIngestModuleWithUISettingsPanel(IngestModuleIngestJobSett
         else:
             self.local_settings.setSetting("heic", "false")
             
+    def getPanel(self):
+        return self.panel
+            
+#===================== end of METADATA ANALYZER GUI CLASS =====================#      
+            
+#===================== start of METADATA FILTER GUI CLASS =====================#
+
+class JMetadataFilterGUI:
+    
+    word_search_list = []
+    
+    def __init__(self, settings, frame):
+        
+        self.local_settings = settings
+        
+        self.frame = frame
+        self.initComponents()
+        self.customizeComponents()
+        
+        
+    
+    def initComponents(self):
+        
+        global filterCounter
+        
+        self.panel = JPanel()
+        self.panel.setLayout(None)
+        #self.panel.setBackground(Color.yellow)
+        self.panel.setAlignmentX(Component.LEFT_ALIGNMENT)
+        
+        filterCounter += 1
+        self.lastPosition = 120
+    
+        title2 = JLabel("IMAGE METADATA FILTER")
+        title2.setHorizontalAlignment(SwingConstants.LEFT)
+        title2.setFont(Font("Tahoma", Font.BOLD, 14))
+        title2.setBounds(5, 10, 250, 20)
+        self.panel.add(title2)
+        
+        button1 = JButton("+", actionPerformed=self.addEvent)
+        button1.setHorizontalAlignment(SwingConstants.CENTER)
+        button1.setBounds(230, 10, 43, 22)
+        self.panel.add(button1)
+        
+        self.advertisment = JLabel("You have added " + str(filterCounter) + " filters")
+        self.advertisment.setForeground(Color.green)
+        self.advertisment.setHorizontalAlignment(SwingConstants.CENTER)
+        self.advertisment.setFont(Font("Default", Font.ITALIC, 10))
+        self.advertisment.setBounds(5, 33, 250, 20)
+        self.panel.add(self.advertisment)
+        
+        self.filter_checkbox = JCheckBox("Use only the Image Metadata Filter", actionPerformed=self.filterChekBoxEvent)
+        self.filter_checkbox.setBounds(5, 55, 300, 20)
+        self.panel.add(self.filter_checkbox)
+        
+        
+        label3 = JLabel("Write the filters you want to introduce and search it:")
+        label3.setHorizontalAlignment(SwingConstants.LEFT)
+        label3.setFont(Font("Default", Font.PLAIN, 12))
+        label3.setBounds(5, 80, 300, 20)
+        self.panel.add(label3)
+        
+        
+        label3_1 = JLabel("For example: Name1 OR Name2")
+        label3_1.setHorizontalAlignment(SwingConstants.LEFT)
+        label3_1.setFont(Font("Default", Font.ITALIC, 8))
+        label3_1.setBounds(5, 95, 300, 20)
+        self.panel.add(label3_1)
+        
+        
+        self.lbl_1 = JLabel("Filter 1: ")
+        self.lbl_1.setBounds(10, 120, 50, 20)
+        self.lbl_1.setFont(Font("Default", Font.ITALIC, 11))
+        self.panel.add(self.lbl_1)
+        
+        self.word_search = JTextField()
+        self.word_search.setBounds(65, 120, 200, 23)
+        self.panel.add(self.word_search)
+        
+        # Creation of a list to access to all JTextFields of each filter
+        # the position of the list corresponds to the number of the filter - 1
+        self.word_search_list = [self.word_search]
+        
+        
+        self.panel.setPreferredSize(Dimension(300,650))
+        self.scroll = JScrollPane(self.panel, JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED, JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED)
+        self.scroll.setPreferredSize(Dimension(300,650))
+        
+        #frame.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE)
+        self.frame.add(self.scroll)
+        self.frame.setVisible(True)
+
+    
+    def customizeComponents(self):
+        # Mantain the GUI "Use only the Image Metadata Filter" box selected if selected before
+        #self.filter_checkbox.setSelected(self.local_settings.getSetting("filter") == "true")
+        pass
+        
+    def addEvent(self, event):
+        self.addNewFilter()
+        
     def wordCheckBoxEvent(self, event):
-        self.local_settings.setSetting("word_search", self.word_search.getText())
+        for m in range(len(self.word_search_list)):
+            self.local_settings.setSetting("word_search_" + str(m + 1), self.word_search_list[m].getText())
         
     def filterChekBoxEvent(self, event):
         if self.filter_checkbox.isSelected():
             self.local_settings.setSetting("filter", "true")
         else:
             self.local_settings.setSetting("filter", "false")
-    
-    #=============== end CheckBox Events ===============#
+        
+    def addNewFilter(self):
+        
+        global filterCounter
+        
+        filterCounter += 1
+        self.lastPosition += 25
+        
+        if (filterCounter <= 20):
+            self.lbl_2 = JLabel("Filter " + str(filterCounter) + ":")
+            self.lbl_2.setBounds(10, self.lastPosition, 50, 20)
+            self.lbl_2.setFont(Font("Default", Font.ITALIC, 11))
+            self.panel.add(self.lbl_2)
             
-
-    def initComponents(self):
-        #self.setLayout(BoxLayout(self, BoxLayout.Y_AXIS))
-        self.setLayout(None)
+            self.word_search_2 = JTextField()
+            self.word_search_2.setBounds(65, self.lastPosition, 200, 23)
+            self.panel.add(self.word_search_2)
+            
+            self.word_search_list.append(self.word_search_2)
+            
+            self.advertisment.text = "You have added " + str(filterCounter) + " filters"
+            
+        else:
+            self.advertisment.setForeground(Color.red)
+            self.advertisment.text = "You have added the maximum number of filters!"
         
-        title1 = JLabel("IMAGE METADATA ANALYZER")
-        title1.setHorizontalAlignment(SwingConstants.LEFT)
-        title1.setFont(Font("Tahoma", Font.BOLD, 14))
-        title1.setBounds(0, 10, 300, 20)
-        self.add(title1)
-        
-        label1 = JLabel("Select the type of Metadata you want to analyze:")
-        label1.setHorizontalAlignment(SwingConstants.LEFT)
-        label1.setFont(Font("Default", Font.PLAIN, 11))
-        label1.setBounds(0, 40, 300, 20)
-        self.add(label1)
-        
-        # EXIF checkbox
-        self.exif_checkbox = JCheckBox("EXIF Metadata", actionPerformed=self.exifCheckBoxEvent)
-        self.exif_checkbox.setBounds(5, 60, 110, 20)
-        self.add(self.exif_checkbox)
-        
-        # IPTC checkbox
-        self.iptc_checkbox = JCheckBox("IPTC Metadata", actionPerformed=self.iptcCheckBoxEvent)
-        self.iptc_checkbox.setBounds(125, 60, 110, 20)
-        self.add(self.iptc_checkbox)
-        
-        # XMP checkbox
-        self.xmp_checkbox = JCheckBox("XMP Metadata", actionPerformed=self.xmpCheckBoxEvent)
-        self.xmp_checkbox.setBounds(5, 80, 110, 20)
-        self.add(self.xmp_checkbox)
-        
-        # Other checkbox
-        self.other_checkbox = JCheckBox("Other", actionPerformed=self.otherCheckBoxEvent)
-        self.other_checkbox.setBounds(125, 80, 110, 20)
-        self.add(self.other_checkbox)
-        
-        
-        label2 = JLabel("Select the type of image file you want to analyze:")
-        label2.setHorizontalAlignment(SwingConstants.LEFT)
-        label2.setFont(Font("Default", Font.PLAIN, 11))
-        label2.setBounds(0, 110, 300, 20)
-        self.add(label2)
-        
-        # JPG checkbox
-        self.jpg_checkbox = JCheckBox("JPG (JPEG)", actionPerformed=self.jpgCheckBoxEvent)
-        self.jpg_checkbox.setBounds(5, 130, 80, 20)
-        self.add(self.jpg_checkbox)
-        
-        # PNG checkbox
-        self.png_checkbox = JCheckBox("PNG", actionPerformed=self.pngCheckBoxEvent)
-        self.png_checkbox.setBounds(100, 130, 80, 20)
-        self.add(self.png_checkbox)
-        
-        # TIFF checkbox
-        self.tiff_checkbox = JCheckBox("TIFF", actionPerformed=self.tiffCheckBoxEvent)
-        self.tiff_checkbox.setBounds(195, 130, 80, 20)
-        self.add(self.tiff_checkbox)
-        
-        # GIF checkbox
-        self.gif_checkbox = JCheckBox("GIF", actionPerformed=self.gifCheckBoxEvent)
-        self.gif_checkbox.setBounds(5, 150, 80, 20)
-        self.add(self.gif_checkbox)
-        
-        # HEIC checkbox
-        self.heic_checkbox = JCheckBox("HEIC", actionPerformed=self.heicCheckBoxEvent)
-        self.heic_checkbox.setBounds(100, 150, 80, 20)
-        self.add(self.heic_checkbox)
-        
-        title2 = JLabel("IMAGE METADATA FILTER")
-        title2.setHorizontalAlignment(SwingConstants.LEFT)
-        title2.setFont(Font("Tahoma", Font.BOLD, 14))
-        title2.setBounds(0, 190, 300, 20)
-        self.add(title2)
-        
-        label3 = JLabel("Write the filter you want to introduce and search it:")
-        label3.setHorizontalAlignment(SwingConstants.LEFT)
-        label3.setFont(Font("Default", Font.PLAIN, 11))
-        label3.setBounds(0, 220, 300, 20)
-        self.add(label3)
-        
-        label3_1 = JLabel("For example: Canon OR iPhone")
-        label3_1.setHorizontalAlignment(SwingConstants.LEFT)
-        label3_1.setFont(Font("Default", Font.ITALIC, 8))
-        label3_1.setBounds(0, 233, 300, 20)
-        self.add(label3_1)
-        
-        self.word_search = JTextField()
-        self.word_search.setBounds(5, 250, 280, 23)
-        self.add(self.word_search)
-        #self.word_search.setAction(actionPerformed=self.wordSearchTextField)
-        #self.local_settings.setSetting("word_search", self.word_search.getText())
-        
-        self.filter_checkbox = JCheckBox("Use only the Image Metadata Filter", actionPerformed=self.filterChekBoxEvent)
-        self.filter_checkbox.setBounds(5, 275, 300, 20)
-        self.add(self.filter_checkbox)
-        
-        self.word_search_button = JButton("Load Module!", actionPerformed=self.wordCheckBoxEvent)
-        self.word_search_button.setHorizontalAlignment(SwingConstants.CENTER)
-        self.word_search_button.setBounds(60, 305, 160, 22)
-        self.add(self.word_search_button)
+        # Refresh the panel, with this we don't have problems when adding new filters
+        # We click the button to add a new filter and the filter appears immediately
+        self.panel.revalidate();
+        self.panel.repaint();
         
 
-    def customizeComponents(self):
-        # Mantain the GUI EXIF box selected if selected before
-        self.exif_checkbox.setSelected(self.local_settings.getSetting("exif") == "true")
+    def getPanel(self):
+        return self.scroll
+    
+    
+#====================== end of METADATA FILTER GUI CLASS ======================#
+    
+            
+            
         
-        # Mantain the GUI IPTC box selected if selected before
-        self.iptc_checkbox.setSelected(self.local_settings.getSetting("iptc") == "true")
         
-        # Mantain the GUI XMP box selected if selected before
-        self.xmp_checkbox.setSelected(self.local_settings.getSetting("xmp") == "true")
         
-        # Mantain the GUI Other box selected if selected before
-        self.other_checkbox.setSelected(self.local_settings.getSetting("other") == "true")
         
-        # Mantain the GUI JPG box selected if selected before
-        self.jpg_checkbox.setSelected(self.local_settings.getSetting("jpg") == "true")
-        
-        # Mantain the GUI PNG box selected if selected before
-        self.png_checkbox.setSelected(self.local_settings.getSetting("png") == "true")
-        
-        # Mantain the GUI TIFF box selected if selected before
-        self.tiff_checkbox.setSelected(self.local_settings.getSetting("tiff") == "true")
-        
-        # Mantain the GUI GIF box selected if selected before
-        self.gif_checkbox.setSelected(self.local_settings.getSetting("gif") == "true")
-        
-        # Mantain the GUI HEIC box selected if selected before
-        self.heic_checkbox.setSelected(self.local_settings.getSetting("heic") == "true")
-        
-        # Mantain the GUI "Use only the Image Metadata Filter" box selected if selected before
-        self.filter_checkbox.setSelected(self.local_settings.getSetting("filter") == "true")
-
-    # Return the settings used
-    def getSettings(self):
-        return self.local_settings
+    
+    
+    
