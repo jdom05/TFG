@@ -19,6 +19,14 @@ Make sure to install `exiftool` in the proper *PATH*:
 - 6th level => filter `!=` by specific metadata tag and value (ex: Author `!=` Jordi)
 - 7th level => filter `CONTAINS` by specific metadata tag (ex: Author `CONTAINS` Jordi)
 - 8th level => filter `DOES NOT CONTAIN` by specific metadata tag (ex: Author `DOES NOT CONTAIN` Jordi)
+
+
+| Filter Type | Text Pattern            |
+| ----------- | ----------------------- |
+| Simple      | Name1                   |
+| NOT         | NOT Name1               |
+| AND         | Name1 AND Name2 AND ... |
+| OR          | Name1 OR Name2 OR ...   |
  
 
 
