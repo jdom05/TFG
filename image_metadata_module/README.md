@@ -1,15 +1,17 @@
-# Image Metadata Analyzer 
-Autopsy Module
+# Image Metadata Analyzer Module 
+Autopsy Module by Jordi Domenech (jordidomenech99@gmail.com)
 
 ## Installation
 1. Install `exiftool` command-line tool by Phil Harvey from the [official website](https://exiftool.org/).
 2. Install `jython` for the proper conversion of Python code into Java. You can install it from the [official website](https://www.jython.org/download).
+3. Download this repository and copy the `image_metadata_module` folder in *Tools > Python Modules* section of Autopsy.
 
 Make sure to install `exiftool` in the proper *PATH*:
 - **Windows**: `C:\WINDOWS\exiftool.exe`
 - **MacOS**: `/usr/local/bin/exiftool`
 
 ## Image Metadata Filter
+
 
 | Filter Type          | Text Pattern                            | Description                                                                                                                                 |
 |:-------------------- |:--------------------------------------- |:------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -24,4 +26,6 @@ Make sure to install `exiftool` in the proper *PATH*:
 
 
 **CAUTION:** The MetadataTag must match perfectly accordingly to the [Exiftool Tag Names](https://exiftool.org/TagNames/).
+
+If you have more doubts about the installation and/or the functioning of the module download the [TFG.pdf] file (../TFG_test.pdf) or contact me via email.
 
