@@ -27,5 +27,5 @@ Make sure to install `exiftool` in the proper *PATH*:
 
 **CAUTION:** The MetadataTag must match perfectly accordingly to the [Exiftool Tag Names](https://exiftool.org/TagNames/).
 
-If you have more doubts about the installation and/or the functioning of the module download the [TFG.pdf](/blob/master/TFG_test.pdf) file or contact me via email.
+If you have more doubts about the installation and/or the functioning of the module download the [TFG.pdf](/TFG_test.pdf) file or contact me via email.
 
