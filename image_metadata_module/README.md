@@ -21,12 +21,12 @@ Make sure to install `exiftool` in the proper *PATH*:
 - 8th level => filter `DOES NOT CONTAIN` by specific metadata tag (ex: Author `DOES NOT CONTAIN` Jordi)
 
 
-| Filter Type | Text Pattern            |
-| ----------- | ----------------------- |
-| Simple      | Name1                   |
-| NOT         | NOT Name1               |
-| AND         | Name1 AND Name2 AND ... |
-| OR          | Name1 OR Name2 OR ...   |
+| Filter Type | Text Pattern                    | Description
+|:----------- |:------------------------------- |
+| **Simple**  | Name1                           | The module searches if the word is in the metadata of any image analyzed in the case
+| **NOT**     | **NOT** Name1                   | The module searches if the word is NOT in the metadata of any image analyzed in the case
+| **AND**     | Name1 **AND** Name2 **AND** ... | The module searches if all the words are inside the metadata of any image
+| **OR**      | Name1 **OR** Name2 **OR** ...   | The module searches if at least one of the words is inside the metadata of any image
  
 
 
