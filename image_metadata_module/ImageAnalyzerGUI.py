@@ -787,6 +787,13 @@ class ImageMetadataFileIngestModuleWithUISettingsPanel(IngestModuleIngestJobSett
         button3.setBounds(0, 300, 300, 22)
         self.add(button3)
         
+        self.module_label = JLabel("Module NOT loaded yet!")
+        self.module_label.setForeground(Color.red)
+        self.module_label.setHorizontalAlignment(SwingConstants.CENTER)
+        self.module_label.setFont(Font("Default", Font.BOLD, 11))
+        self.module_label.setBounds(0, 325, 300, 20)
+        self.add(self.module_label)
+        
         
     def customizeComponents(self):
         pass
@@ -798,6 +805,9 @@ class ImageMetadataFileIngestModuleWithUISettingsPanel(IngestModuleIngestJobSett
         
     def testEvent2(self, event):
         self.card.show(self.mainPanel, "2")
+        
+    def getModuleLabel(self):
+        return self.module_label
 
     # Return the settings used
     def getSettings(self):
@@ -1078,6 +1088,10 @@ class JMetadataFilterGUI:
         self.addNewFilter()
         
     def wordCheckBoxEvent(self, event):
+        self.module_label = ImageMetadataFileIngestModuleWithUISettingsPanel.getModuleLabel()
+        self.module_label.text = "Module loaded correctly!"
+        self.module_label.setForegorund(Color.green)
+        
         for m in range(len(self.word_search_list)):
             self.local_settings.setSetting("word_search_" + str(m + 1), self.word_search_list[m].getText())
         
