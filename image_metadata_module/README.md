@@ -1,5 +1,5 @@
 # Image Metadata Analyzer Module 
-Autopsy Module by Jordi Domenech (jordidomenech99@gmail.com)
+Autopsy Module by Jordi Domenech (jordi.domenech.fons@estudiantat.upc.edu)
 
 ## Installation
 1. Install `exiftool` command-line tool by Phil Harvey from the [official website](https://exiftool.org/).
@@ -27,5 +27,5 @@ Make sure to install `exiftool` in the proper *PATH*:
 
 **CAUTION:** The MetadataTag must match perfectly accordingly to the [Exiftool Tag Names](https://exiftool.org/TagNames/).
 
-If you have more doubts about the installation and/or the functioning of the module download the [TFG.pdf](/TFG_test.pdf) file or contact me via email.
+If you have more doubts about the installation and/or the functioning of the module download the [TFG_JDomenech.pdf](/TFG_JDomenech.pdf) file or contact me via email.
 
